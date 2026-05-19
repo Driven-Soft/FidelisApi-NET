@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="DTOs\" />
+      <ProjectReference Include="..\Fidelis.Domain\Fidelis.Domain.csproj" />
     </ItemGroup>
 
 </Project>
