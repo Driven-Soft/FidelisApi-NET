@@ -8,79 +8,79 @@ namespace Fidelis.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-[SwaggerTag("Cadastro de tutores responsáveis pelos pets.")]
-public class TutorController : ControllerBase
+[SwaggerTag("Registro de comportamentos observados nos pets.")]
+public class ComportamentoController : ControllerBase
 {
-    private readonly ITutorService _service;
+    private readonly IComportamentoService _service;
 
-    public TutorController(ITutorService service)
+    public ComportamentoController(IComportamentoService service)
     {
         _service = service;
     }
 
     /// <summary>
-    /// Lista tutores cadastrados.
+    /// Lista comportamentos cadastrados.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetAll()
     {
-        var tutores = _service.GetAll();
-        return Ok(tutores);
+        var comportamentos = _service.GetAll();
+        return Ok(comportamentos);
     }
 
     /// <summary>
-    /// Busca um tutor por id.
+    /// Busca um comportamento por id.
     /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
-        var tutor = _service.GetById(id);
-        return tutor is null ? NotFound() : Ok(tutor);
+        var comportamento = _service.GetById(id);
+        return comportamento is null ? NotFound() : Ok(comportamento);
     }
 
     /// <summary>
-    /// Cria um novo tutor.
+    /// Cria um novo comportamento.
     /// </summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public IActionResult Create([FromBody] TutorRequest request)
+    public IActionResult Create([FromBody] ComportamentoRequest request)
     {
         var created = _service.Create(request);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     /// <summary>
-    /// Atualiza um tutor existente.
+    /// Atualiza um comportamento existente.
     /// </summary>
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Update(int id, [FromBody] TutorRequest request)
+    public IActionResult Update(int id, [FromBody] ComportamentoRequest request)
     {
         var updated = _service.Update(id, request);
         return updated is null ? NotFound() : Ok(updated);
     }
 
     /// <summary>
-    /// Atualiza parcialmente um tutor.
+    /// Atualiza parcialmente um comportamento.
     /// </summary>
     [HttpPatch("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Patch(int id, [FromBody] TutorPatchRequest request)
+    public IActionResult Patch(int id, [FromBody] ComportamentoPatchRequest request)
     {
         var updated = _service.Patch(id, request);
         return updated is null ? NotFound() : Ok(updated);
     }
 
     /// <summary>
-    /// Remove um tutor por id.
+    /// Remove um comportamento por id.
     /// </summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

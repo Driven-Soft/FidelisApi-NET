@@ -12,8 +12,13 @@
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Oracle.EntityFrameworkCore" Version="8.23.26100" />
+      <PackageReference Include="Oracle.EntityFrameworkCore" Version="9.23.60" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Fidelis.Application\Fidelis.Application.csproj" />
+      <ProjectReference Include="..\Fidelis.Domain\Fidelis.Domain.csproj" />
     </ItemGroup>
 
 </Project>

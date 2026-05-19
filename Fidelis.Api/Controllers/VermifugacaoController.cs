@@ -8,79 +8,79 @@ namespace Fidelis.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-[SwaggerTag("Cadastro de tutores responsáveis pelos pets.")]
-public class TutorController : ControllerBase
+[SwaggerTag("Controle de vermifugações dos pets.")]
+public class VermifugacaoController : ControllerBase
 {
-    private readonly ITutorService _service;
+    private readonly IVermifugacaoService _service;
 
-    public TutorController(ITutorService service)
+    public VermifugacaoController(IVermifugacaoService service)
     {
         _service = service;
     }
 
     /// <summary>
-    /// Lista tutores cadastrados.
+    /// Lista vermifugacoes cadastradas.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetAll()
     {
-        var tutores = _service.GetAll();
-        return Ok(tutores);
+        var vermifugacoes = _service.GetAll();
+        return Ok(vermifugacoes);
     }
 
     /// <summary>
-    /// Busca um tutor por id.
+    /// Busca uma vermifugacao por id.
     /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
-        var tutor = _service.GetById(id);
-        return tutor is null ? NotFound() : Ok(tutor);
+        var vermifugacao = _service.GetById(id);
+        return vermifugacao is null ? NotFound() : Ok(vermifugacao);
     }
 
     /// <summary>
-    /// Cria um novo tutor.
+    /// Cria uma nova vermifugacao.
     /// </summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public IActionResult Create([FromBody] TutorRequest request)
+    public IActionResult Create([FromBody] VermifugacaoRequest request)
     {
         var created = _service.Create(request);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     /// <summary>
-    /// Atualiza um tutor existente.
+    /// Atualiza uma vermifugacao existente.
     /// </summary>
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Update(int id, [FromBody] TutorRequest request)
+    public IActionResult Update(int id, [FromBody] VermifugacaoRequest request)
     {
         var updated = _service.Update(id, request);
         return updated is null ? NotFound() : Ok(updated);
     }
 
     /// <summary>
-    /// Atualiza parcialmente um tutor.
+    /// Atualiza parcialmente uma vermifugacao.
     /// </summary>
     [HttpPatch("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Patch(int id, [FromBody] TutorPatchRequest request)
+    public IActionResult Patch(int id, [FromBody] VermifugacaoPatchRequest request)
     {
         var updated = _service.Patch(id, request);
         return updated is null ? NotFound() : Ok(updated);
     }
 
     /// <summary>
-    /// Remove um tutor por id.
+    /// Remove uma vermifugacao por id.
     /// </summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

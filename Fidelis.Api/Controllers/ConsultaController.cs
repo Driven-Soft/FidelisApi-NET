@@ -8,79 +8,79 @@ namespace Fidelis.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-[SwaggerTag("Cadastro de tutores responsáveis pelos pets.")]
-public class TutorController : ControllerBase
+[SwaggerTag("Agendamento e histórico de consultas veterinárias.")]
+public class ConsultaController : ControllerBase
 {
-    private readonly ITutorService _service;
+    private readonly IConsultaService _service;
 
-    public TutorController(ITutorService service)
+    public ConsultaController(IConsultaService service)
     {
         _service = service;
     }
 
     /// <summary>
-    /// Lista tutores cadastrados.
+    /// Lista consultas cadastradas.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetAll()
     {
-        var tutores = _service.GetAll();
-        return Ok(tutores);
+        var consultas = _service.GetAll();
+        return Ok(consultas);
     }
 
     /// <summary>
-    /// Busca um tutor por id.
+    /// Busca uma consulta por id.
     /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
-        var tutor = _service.GetById(id);
-        return tutor is null ? NotFound() : Ok(tutor);
+        var consulta = _service.GetById(id);
+        return consulta is null ? NotFound() : Ok(consulta);
     }
 
     /// <summary>
-    /// Cria um novo tutor.
+    /// Cria uma nova consulta.
     /// </summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public IActionResult Create([FromBody] TutorRequest request)
+    public IActionResult Create([FromBody] ConsultaRequest request)
     {
         var created = _service.Create(request);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     /// <summary>
-    /// Atualiza um tutor existente.
+    /// Atualiza uma consulta existente.
     /// </summary>
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Update(int id, [FromBody] TutorRequest request)
+    public IActionResult Update(int id, [FromBody] ConsultaRequest request)
     {
         var updated = _service.Update(id, request);
         return updated is null ? NotFound() : Ok(updated);
     }
 
     /// <summary>
-    /// Atualiza parcialmente um tutor.
+    /// Atualiza parcialmente uma consulta.
     /// </summary>
     [HttpPatch("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Patch(int id, [FromBody] TutorPatchRequest request)
+    public IActionResult Patch(int id, [FromBody] ConsultaPatchRequest request)
     {
         var updated = _service.Patch(id, request);
         return updated is null ? NotFound() : Ok(updated);
     }
 
     /// <summary>
-    /// Remove um tutor por id.
+    /// Remove uma consulta por id.
     /// </summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

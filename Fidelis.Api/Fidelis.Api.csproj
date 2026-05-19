@@ -5,6 +5,8 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>Fidelis</RootNamespace>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,9 +16,15 @@
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.1.7" />
         <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.7" />
         <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.7" />
         <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.7" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Fidelis.Application\Fidelis.Application.csproj" />
+        <ProjectReference Include="..\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
