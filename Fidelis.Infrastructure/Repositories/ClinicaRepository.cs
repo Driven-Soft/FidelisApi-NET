@@ -4,9 +4,9 @@ using Fidelis.Infrastructure.Persistence;
 
 namespace Fidelis.Infrastructure.Repositories;
 
-public class VeterinarioRepository : Repository<Veterinario>, IVeterinarioRepository
+public class ClinicaRepository : Repository<Clinica>, IClinicaRepository
 {
-    public VeterinarioRepository(FidelisContext context) : base(context)
+    public ClinicaRepository(FidelisContext context) : base(context)
     {
     }
 }
