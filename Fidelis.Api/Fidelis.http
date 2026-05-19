@@ -1,0 +1,6 @@
+@Fidelis_HostAddress = http://localhost:5232
+
+GET {{Fidelis_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
