@@ -1,6 +1,7 @@
+using Fidelis.Domain.Entities;
+
 namespace Fidelis.Application.Interfaces.Repositories;
 
-public class ITutorRepository
+public interface ITutorRepository : IRepository<Tutor>
 {
-    
 }

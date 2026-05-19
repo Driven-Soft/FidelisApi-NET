@@ -1,6 +1,7 @@
+using Fidelis.Domain.Entities;
+
 namespace Fidelis.Application.Interfaces.Repositories;
 
-public class IVeterinarioRepository
+public interface IVeterinarioRepository : IRepository<Veterinario>
 {
-    
 }
