@@ -8,7 +8,7 @@ public class RecomendacaoConfiguration : IEntityTypeConfiguration<Recomendacao>
 {
     public void Configure(EntityTypeBuilder<Recomendacao> builder)
     {
-        builder.ToTable("Recomendacoes");
+        builder.ToTable("RECOMENDACOES");
 
         builder.HasKey(x => x.Id);
 

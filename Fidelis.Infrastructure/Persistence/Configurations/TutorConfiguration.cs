@@ -8,7 +8,7 @@ public class TutorConfiguration : IEntityTypeConfiguration<Tutor>
 {
     public void Configure(EntityTypeBuilder<Tutor> builder)
     {
-        builder.ToTable("Tutores");
+        builder.ToTable("TUTORES");
 
         builder.HasKey(x => x.Id);
 

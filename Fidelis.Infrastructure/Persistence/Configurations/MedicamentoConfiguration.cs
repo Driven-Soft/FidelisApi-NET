@@ -8,7 +8,7 @@ public class MedicamentoConfiguration : IEntityTypeConfiguration<Medicamento>
 {
     public void Configure(EntityTypeBuilder<Medicamento> builder)
     {
-        builder.ToTable("Medicamentos");
+        builder.ToTable("MEDICAMENTOS");
 
         builder.HasKey(x => x.Id);
 

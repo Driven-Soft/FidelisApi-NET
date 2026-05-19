@@ -8,7 +8,7 @@ public class ClinicaConfiguration : IEntityTypeConfiguration<Clinica>
 {
     public void Configure(EntityTypeBuilder<Clinica> builder)
     {
-        builder.ToTable("Clinicas");
+        builder.ToTable("CLINICAS");
 
         builder.HasKey(x => x.Id);
 

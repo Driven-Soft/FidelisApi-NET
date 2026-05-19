@@ -8,7 +8,7 @@ public class VeterinarioConfiguration : IEntityTypeConfiguration<Veterinario>
 {
     public void Configure(EntityTypeBuilder<Veterinario> builder)
     {
-        builder.ToTable("Veterinarios");
+        builder.ToTable("VETERINARIOS");
 
         builder.HasKey(x => x.Id);
 

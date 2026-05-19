@@ -8,7 +8,7 @@ public class LembreteConfiguration : IEntityTypeConfiguration<Lembrete>
 {
     public void Configure(EntityTypeBuilder<Lembrete> builder)
     {
-        builder.ToTable("Lembretes");
+        builder.ToTable("LEMBRETES");
 
         builder.HasKey(x => x.Id);
 

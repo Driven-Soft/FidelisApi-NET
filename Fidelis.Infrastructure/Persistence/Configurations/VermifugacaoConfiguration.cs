@@ -8,7 +8,7 @@ public class VermifugacaoConfiguration : IEntityTypeConfiguration<Vermifugacao>
 {
     public void Configure(EntityTypeBuilder<Vermifugacao> builder)
     {
-        builder.ToTable("Vermifugacoes");
+        builder.ToTable("VERMIFUGACOES");
 
         builder.HasKey(x => x.Id);
 

@@ -8,7 +8,7 @@ public class HistoricoPesoConfiguration : IEntityTypeConfiguration<HistoricoPeso
 {
     public void Configure(EntityTypeBuilder<HistoricoPeso> builder)
     {
-        builder.ToTable("HistoricoPesos");
+        builder.ToTable("HISTORICO_PESOS");
 
         builder.HasKey(x => x.Id);
 

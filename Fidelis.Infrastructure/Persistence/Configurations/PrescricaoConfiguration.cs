@@ -8,7 +8,7 @@ public class PrescricaoConfiguration : IEntityTypeConfiguration<Prescricao>
 {
     public void Configure(EntityTypeBuilder<Prescricao> builder)
     {
-        builder.ToTable("Prescricoes");
+        builder.ToTable("PRESCRICOES");
 
         builder.HasKey(x => x.Id);
 

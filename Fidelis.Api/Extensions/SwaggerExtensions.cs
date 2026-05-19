@@ -15,13 +15,12 @@ public static class SwaggerExtensions
             {
                 Title = "Fidelis API",
                 Version = "v1",
-                Description = "API REST para gerenciamento do dominio Fidelis.",
-                TermsOfService = new Uri("https://example.com/fidelis/terms"),
+                Description = "API REST para gerenciamento do domínio Fidelis — plataforma de saúde contínua para pets. Centraliza a jornada clínica do animal, conectando tutores e veterinários em torno de um histórico longitudinal estruturado. Expõe recursos para gestão de pets, tutores, veterinários, clínicas, consultas, vacinas, prescrições, exames, lembretes e recomendações inteligentes.",
                 Contact = new OpenApiContact
                 {
-                    Name = "Equipe Fidelis",
-                    Email = "contato@example.com",
-                    Url = new Uri("https://example.com/fidelis")
+                    Name = "Equipe Driven Soft",
+                    Email = "contato@drivensoft.com",
+                    Url = new Uri("https://github.com/Driven-Soft")
                 },
                 License = new OpenApiLicense
                 {

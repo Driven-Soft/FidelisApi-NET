@@ -8,7 +8,7 @@ public class VacinacaoConfiguration : IEntityTypeConfiguration<Vacinacao>
 {
     public void Configure(EntityTypeBuilder<Vacinacao> builder)
     {
-        builder.ToTable("Vacinacoes");
+        builder.ToTable("VACINACOES");
 
         builder.HasKey(x => x.Id);
 

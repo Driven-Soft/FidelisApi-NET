@@ -8,7 +8,7 @@ public class ConsultaConfiguration : IEntityTypeConfiguration<Consulta>
 {
     public void Configure(EntityTypeBuilder<Consulta> builder)
     {
-        builder.ToTable("Consultas");
+        builder.ToTable("CONSULTAS");
 
         builder.HasKey(x => x.Id);
 
