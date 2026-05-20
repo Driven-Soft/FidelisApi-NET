@@ -3,18 +3,18 @@
 <hr/>
 
 ## Equipe Driven Soft:
-- Felipe Bezerra Beatrici - RM564723
-- Max Hayashi Batista - RM564723
-- Henrique Cunha Torres - RM565119
+1. Felipe Bezerra Beatrici - RM564723
+2. Max Hayashi Batista - RM564723
+3. Henrique Cunha Torres - RM565119
 
 <hr/>
 
 API REST em .NET para gerenciamento de recursos do domínio Fidelis, organizada em camadas e separada em:
 
-- `Fidelis.Api` — camada HTTP, controllers, Swagger e tratamento global de erros
-- `Fidelis.Application` — DTOs, contratos e serviços de aplicação
-- `Fidelis.Domain` — entidades e regras de negócio
-- `Fidelis.Infrastructure` — EF Core, persistência, repositórios e mapeamentos
+1. `Fidelis.Api` — camada HTTP, controllers, Swagger e tratamento global de erros
+2. `Fidelis.Application` — DTOs, contratos e serviços de aplicação
+3. `Fidelis.Domain` — entidades e regras de negócio
+4. `Fidelis.Infrastructure` — EF Core, persistência, repositórios e mapeamentos
 
 <hr/>
 
@@ -24,26 +24,26 @@ A solução expõe uma API REST com operações de CRUD completas para os princi
 
 ### Recursos disponíveis
 
-- `Clinica`
-- `Comportamento`
-- `Consulta`
-- `Exame`
-- `HistoricoPeso`
-- `Lembrete`
-- `Medicamento`
-- `Pet`
-- `Prescricao`
-- `Recomendacao`
-- `Tutor`
-- `Vacinacao`
-- `Vermifugacao`
-- `Veterinario`
+1. `Clinica`
+2. `Comportamento`
+3. `Consulta`
+4. `Exame`
+5. `HistoricoPeso`
+6. `Lembrete`
+7. `Medicamento`
+8. `Pet`
+9. `Prescricao`
+10. `Recomendacao`
+11. `Tutor`
+12. `Vacinacao`
+13. `Vermifugacao`
+14. `Veterinario`
 
 ## Requisitos
 
-- .NET SDK compatível com `net10.0`
-- Oracle Database acessível
-- Connection string configurada em `Fidelis.Api/appsettings.Development.json` ou em outro mecanismo de configuração local
+1. .NET SDK compatível com `net10.0`
+2. Oracle Database acessível
+3. Connection string configurada em `Fidelis.Api/appsettings.Development.json`
 
 ## Configuração do banco
 
@@ -62,16 +62,34 @@ Exemplo esperado:
 ## Instalação
 
 1. Clone ou abra a solução localmente.
-2. Verifique se o .NET SDK está instalado:
+2. Verifique se o .NET SDK está instalado na versão 10.0.X ou superior:
 
 ```powershell
 dotnet --version
 ```
 
+* Caso o .NET SDK esteja numa versão diferente da esperada, instale a versão correta do SDK a partir do site oficial: https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.300-windows-x64-installer
+
+* Execute o comando:
+```powershell
+dotnet --list-sdks
+```
+
+* Instale o dotnet ef global tool, caso ainda não tenha:
+
+```powershell
+dotnet tool install --global dotnet-ef
+```
+
+* Teste o funcionamento do dotnet ef:
+
+```powershell
+dotnet ef --version
+```
+
 3. Restaure os pacotes da solução:
 
 ```powershell
-cd C:\Chalkboard\NET\Fidelis
 dotnet restore
 ```
 
@@ -79,13 +97,14 @@ dotnet restore
 
 ## Migrations e banco
 
-Se for criar o banco do zero, gere e aplique a migration inicial:
+Se for criar o banco do zero, gere e aplique a migration inicial.
+Como no projeto as migrations já estão criadas, basta aplicar o segundo comando:
 
 ```powershell
-cd C:\Chalkboard\NET\Fidelis
-
 dotnet ef migrations add InitialCreate -p .\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj -s .\Fidelis.Api\Fidelis.Api.csproj
+```
 
+```powershell
 dotnet ef database update -p .\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj -s .\Fidelis.Api\Fidelis.Api.csproj
 ```
 
@@ -122,29 +141,29 @@ Todos os controllers seguem o padrão REST abaixo, usando a rota base `api/[cont
 
 Cada recurso abaixo expõe o mesmo conjunto de operações CRUD:
 
-- `api/Clinica`
-- `api/Comportamento`
-- `api/Consulta`
-- `api/Exame`
-- `api/HistoricoPeso`
-- `api/Lembrete`
-- `api/Medicamento`
-- `api/Pet`
-- `api/Prescricao`
-- `api/Recomendacao`
-- `api/Tutor`
-- `api/Vacinacao`
-- `api/Vermifugacao`
-- `api/Veterinario`
+1. `api/Clinica`
+2. `api/Comportamento`
+3. `api/Consulta`
+4. `api/Exame`
+5. `api/HistoricoPeso`
+6. `api/Lembrete`
+7. `api/Medicamento`
+8. `api/Pet`
+9. `api/Prescricao`
+10. `api/Recomendacao`
+11. `api/Tutor`
+12. `api/Vacinacao`
+13. `api/Vermifugacao`
+14. `api/Veterinario`
 
 ### Códigos HTTP utilizados
 
-- `200 OK` — consulta, atualização com retorno
-- `201 Created` — criação de recurso
-- `204 NoContent` — remoção concluída com sucesso
-- `400 BadRequest` — dados inválidos ou violação de regra de negócio esperada
-- `404 NotFound` — recurso não encontrado
-- `500 InternalServerError` — falhas inesperadas
+1. `200 OK` — consulta, atualização com retorno
+2. `201 Created` — criação de recurso
+3. `204 NoContent` — remoção concluída com sucesso
+4. `400 BadRequest` — dados inválidos ou violação de regra de negócio esperada
+5. `404 NotFound` — recurso não encontrado
+6. `500 InternalServerError` — falhas inesperadas
 
 ## Testando a API
 
@@ -181,6 +200,6 @@ Fidelis.sln
 
 ## Observações
 
-- A API usa Swagger/OpenAPI para documentação dos endpoints.
-- As validações de domínio podem retornar `400 BadRequest` quando regras esperadas forem violadas.
-- O tratamento global de exceções padroniza as respostas de erro.
+1. A API usa Swagger/OpenAPI para documentação dos endpoints.
+2. As validações de domínio podem retornar `400 BadRequest` quando regras esperadas forem violadas.
+3. O tratamento global de exceções padroniza as respostas de erro.
