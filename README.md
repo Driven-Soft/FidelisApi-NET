@@ -49,7 +49,7 @@ A solução expõe uma API REST com operações de CRUD completas para os princi
 
 A API lê a connection string da seção `ConnectionStrings`.
 
-Exemplo esperado:
+Coloque suas credenciais de banco e detalhes de conexão no arquivo `appsettings.Development.json` seguindo o formato abaixo:
 
 ```json
 {
@@ -97,11 +97,11 @@ dotnet restore
 
 ## Migrations e banco
 
-Se for criar o banco do zero, gere e aplique a migration inicial.
+**Se for criar o banco do zero**, gere e aplique a migration inicial.
 Como no projeto as migrations já estão criadas, basta aplicar o segundo comando:
 
 ```powershell
-dotnet ef migrations add InitialCreate -p .\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj -s .\Fidelis.Api\Fidelis.Api.csproj
+dotnet ef migrations add Migration_004 -p .\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj -s .\Fidelis.Api\Fidelis.Api.csproj
 ```
 
 ```powershell
