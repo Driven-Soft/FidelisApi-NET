@@ -1,11 +1,15 @@
 # Fidelis
-
 <hr/>
 
-## Equipe Driven Soft:
-1. Felipe Bezerra Beatrici - RM564723
-2. Max Hayashi Batista - RM564723
-3. Henrique Cunha Torres - RM565119
+## Equipe Driven Soft
+
+### Integrantes
+
+| Nome | RM |
+| --- | --- |
+| Felipe Bezerra Beatrici | RM 564723 |
+| Max Hayashi Batista | RM 563717 |
+| Henrique Cunha Torres | RM 565119 |
 
 <hr/>
 
