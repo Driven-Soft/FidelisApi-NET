@@ -13,6 +13,11 @@
 
 <hr/>
 
+### Repositório no Github:
+* https://github.com/Driven-Soft/FidelisApi-NET
+
+<hr/>
+
 API REST em .NET para gerenciamento de recursos do domínio Fidelis, organizada em camadas e separada em:
 
 1. `Fidelis.Api` — camada HTTP, controllers, Swagger e tratamento global de erros
