@@ -10,7 +10,8 @@
 | Felipe Bezerra Beatrici | RM 564723 |
 | Max Hayashi Batista | RM 563717 |
 | Henrique Cunha Torres | RM 565119 |
-
+| Yasmin Nathalin Miranda dos Santos | RM 561365 |
+| Lucas da Silva Lima | RM 562118 |
 <hr/>
 
 ### Repositório no Github:
@@ -20,10 +21,12 @@
 
 API REST em .NET para gerenciamento de recursos do domínio Fidelis, organizada em camadas e separada em:
 
-1. `Fidelis.Api` — camada HTTP, controllers, Swagger e tratamento global de erros
+1. `Fidelis.Api` — camada HTTP, controllers, Swagger, observabilidade (logs, tracing, métricas, health checks) e tratamento global de erros
 2. `Fidelis.Application` — DTOs, contratos e serviços de aplicação
 3. `Fidelis.Domain` — entidades e regras de negócio
 4. `Fidelis.Infrastructure` — EF Core, persistência, repositórios e mapeamentos
+5. `Fidelis.UnitTests` — testes unitários (xUnit + Moq) de domínio e serviços
+6. `Fidelis.IntegrationTests` — testes de integração (xUnit + WebApplicationFactory) dos endpoints HTTP
 
 <hr/>
 
@@ -197,6 +200,88 @@ $body = @{
 Invoke-RestMethod -Method Post -Uri "http://localhost:5232/api/Tutor" -ContentType "application/json" -Body $body
 ```
 
+## Observabilidade
+
+A API expõe os três pilares de observabilidade — logs, tracing e métricas — usando Serilog e OpenTelemetry.
+
+### Health Checks
+
+Usados para verificar se a aplicação está viva e se está pronta para receber tráfego (padrão de probes do Kubernetes).
+
+| Endpoint | Verifica | Uso |
+|---|---|---|
+| `GET /health/live` | Só se o processo está rodando (não depende de nada externo) | Liveness probe |
+| `GET /health/ready` | Conectividade com o banco Oracle (`AddDbContextCheck<FidelisContext>`) | Readiness probe |
+| `GET /health` | Relatório completo com todas as verificações | Diagnóstico manual / dashboards |
+
+Exemplo de resposta de `/health/ready`:
+
+```json
+{
+  "status": "Healthy",
+  "results": {
+    "oracle-database": { "status": "Healthy" }
+  }
+}
+```
+
+Se o banco estiver indisponível, o endpoint retorna `503 Service Unavailable` com `"status": "Unhealthy"`.
+
+### Logging estruturado
+
+Configurado com Serilog em `Program.cs`, escrevendo no console em formato estruturado (chave/valor), com:
+
+- `UseSerilogRequestLogging()` — loga automaticamente cada requisição HTTP (rota, método, status code, tempo de resposta)
+- Enrichment via `Enrich.FromLogContext()`
+- Uso de templates estruturados no `ILogger<T>` (ex: `_logger.LogInformation("Pet {PetId} atualizado", id)`), nunca interpolação de string — assim os campos ficam pesquisáveis em ferramentas como Seq/Elasticsearch/Grafana Loki
+
+### Tracing e Métricas (OpenTelemetry)
+
+Configurado em `Fidelis.Api/Extensions/ObservabilityExtensions.cs`:
+
+- **Tracing**: instrumentação automática de requisições HTTP de entrada/saída (`AddAspNetCoreInstrumentation`, `AddHttpClientInstrumentation`) + spans customizados criados manualmente nos serviços via `ActivitySource` (ex: `Pet.Create`, `Tutor.Update`)
+- **Métricas**: métricas padrão do ASP.NET Core + contadores customizados via `Meter`/`Counter<T>` (ex: `pets_created_total`, `tutores_created_total`, `consultas_created_total`)
+- Por padrão, ambos os sinais são exportados para o console (`AddConsoleExporter()`), o que é suficiente para desenvolvimento/estudo. Em produção, basta trocar o exporter por um OTLP apontando para um coletor (Grafana Tempo, Jaeger, Prometheus, etc.)
+
+O padrão de instrumentação foi aplicado em `PetService`, `TutorService` e `ConsultaService` como referência; o mesmo padrão (injeção de `ILogger<T>`, `ActivitySource` estático e `Counter<T>` estático) pode ser replicado para os demais serviços.
+
+## Testes automatizados
+
+O projeto possui dois níveis de teste, cada um em sua própria solução de testes.
+
+### Fidelis.UnitTests (xUnit + Moq)
+
+Testa unidades isoladas, sem tocar em banco de dados ou HTTP, seguindo o padrão **AAA (Arrange, Act, Assert)**:
+
+- `Domain/` — valida as regras de negócio das entidades (ex: `Pet` não aceita sexo diferente de `M`/`F`, `Tutor` exige senha com 6+ caracteres)
+- `Services/` — valida os serviços de aplicação (`PetService`, `TutorService`, `ConsultaService`), usando **Moq** para simular os repositórios (`IPetRepository`, `ITutorRepository`, `IConsultaRepository`) e assim testar a lógica de aplicação isoladamente
+
+Convenção de nomes: `MetodoTestado_Cenario_ResultadoEsperado`.
+
+### Fidelis.IntegrationTests (xUnit + WebApplicationFactory)
+
+Sobe a aplicação inteira em memória e testa o fluxo HTTP completo (roteamento, model binding, validação, serialização, tratamento global de erros):
+
+- `CustomWebApplicationFactory` — sobrescreve o `FidelisContext` (que normalmente aponta para o Oracle) por um banco **EF Core InMemory**, isolado por execução, então os testes rodam sem depender de um Oracle real
+- `IntegrationTestCollection` — **Collection Fixture** do xUnit que compartilha uma única instância da fábrica (e do host da aplicação) entre as classes de teste, evitando subir a aplicação inteira a cada classe
+- `Controllers/PetControllerTests.cs` e `Controllers/TutorControllerTests.cs` — cobrem criação (201), busca por id (200/404), atualização (200), remoção (204/404) e erros de validação (400)
+- `Controllers/HealthCheckTests.cs` — valida que `/health/live` e `/health/ready` respondem `200 OK`
+
+> Observação: este projeto não implementa autenticação, então os testes de integração cobrem respostas de sucesso e tratamento de erros, mas não fluxos de autenticação/autorização.
+
+### Rodando os testes
+
+```powershell
+dotnet test
+```
+
+Para rodar só um dos projetos de teste:
+
+```powershell
+dotnet test .\Fidelis.UnitTests\Fidelis.UnitTests.csproj
+dotnet test .\Fidelis.IntegrationTests\Fidelis.IntegrationTests.csproj
+```
+
 ## Estrutura do projeto
 
 ```text
@@ -204,7 +289,9 @@ Fidelis.sln
 ├── Fidelis.Api
 ├── Fidelis.Application
 ├── Fidelis.Domain
-└── Fidelis.Infrastructure
+├── Fidelis.Infrastructure
+├── Fidelis.UnitTests
+└── Fidelis.IntegrationTests
 ```
 
 ## Observações
