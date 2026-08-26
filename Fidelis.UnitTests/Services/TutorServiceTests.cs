@@ -23,6 +23,8 @@ public class TutorServiceTests
     public void Create_RequestValido_AdicionaTutorERetornaResponse()
     {
         // Arrange
+        _repositoryMock.Setup(r => r.GetAll()).Returns(new List<Tutor>());
+
         var request = new TutorRequest
         {
             Cpf = "12345678900",
@@ -41,6 +43,29 @@ public class TutorServiceTests
         Assert.Equal("felipe@example.com", result.Email);
         _repositoryMock.Verify(r => r.Add(It.IsAny<Tutor>()), Times.Once);
         _repositoryMock.Verify(r => r.SaveChanges(), Times.Once);
+    }
+
+    [Fact]
+    public void Create_EmailJaCadastrado_LancaInvalidOperationExceptionENaoAdiciona()
+    {
+        // Arrange
+        var tutorExistente = new Tutor("11122233344", "Outro Tutor", "felipe@example.com", "123456", "11988476632", "Rua Existente, 1");
+        _repositoryMock.Setup(r => r.GetAll()).Returns(new List<Tutor> { tutorExistente });
+
+        var request = new TutorRequest
+        {
+            Cpf = "12345678900",
+            Nome = "Felipe",
+            Email = "felipe@example.com",
+            Senha = "123456",
+            Telefone = "11988476632",
+            Endereco = "Rua Exemplo, 123"
+        };
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => _sut.Create(request));
+        _repositoryMock.Verify(r => r.Add(It.IsAny<Tutor>()), Times.Never);
+        _repositoryMock.Verify(r => r.SaveChanges(), Times.Never);
     }
 
     [Fact]

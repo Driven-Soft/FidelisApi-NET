@@ -136,6 +136,43 @@ Quando estiver em ambiente de desenvolvimento, o Swagger fica disponível em:
 
 > A porta pode variar conforme o perfil de execução configurado no seu ambiente.
 
+## Autenticação
+
+A API usa **JWT Bearer** para proteger seus endpoints. O fluxo é:
+
+1. Cadastre um tutor (endpoint público): `POST /api/Tutor`
+2. Faça login com o email/senha cadastrados: `POST /api/Auth/login`
+3. Use o `token` retornado no header `Authorization: Bearer {token}` nas demais requisições
+
+Endpoints públicos (não exigem token): `POST /api/Tutor` (cadastro) e `POST /api/Auth/login`.
+Todos os outros endpoints (`Pet`, `Consulta`, `Vacinacao`, etc.) exigem o header `Authorization`.
+
+Configure a chave de assinatura do token na seção `Jwt` do `appsettings.Development.json`:
+
+```json
+{
+  "Jwt": {
+    "Key": "uma-chave-secreta-bem-longa-e-aleatoria-32-chars-ou-mais",
+    "Issuer": "FidelisApi",
+    "Audience": "FidelisApiUsers",
+    "ExpiresInMinutes": 60
+  }
+}
+```
+
+Exemplo de login via PowerShell:
+
+```powershell
+$body = @{ email = "user@example.com"; senha = "123456" } | ConvertTo-Json
+$login = Invoke-RestMethod -Method Post -Uri "http://localhost:5232/api/Auth/login" -ContentType "application/json" -Body $body
+
+Invoke-RestMethod -Method Get -Uri "http://localhost:5232/api/Pet" -Headers @{ Authorization = "Bearer $($login.token)" }
+```
+
+No Swagger (`/swagger`), clique em **Authorize** e cole apenas o token (sem o prefixo `Bearer`).
+
+> ⚠️ A senha do `Tutor` hoje é validada em texto puro (não há hash). Para produção, recomenda-se migrar para BCrypt/PBKDF2.
+
 ## Rotas da API
 
 Todos os controllers seguem o padrão REST abaixo, usando a rota base `api/[controller]`:
@@ -267,7 +304,7 @@ Sobe a aplicação inteira em memória e testa o fluxo HTTP completo (roteamento
 - `Controllers/PetControllerTests.cs` e `Controllers/TutorControllerTests.cs` — cobrem criação (201), busca por id (200/404), atualização (200), remoção (204/404) e erros de validação (400)
 - `Controllers/HealthCheckTests.cs` — valida que `/health/live` e `/health/ready` respondem `200 OK`
 
-> Observação: este projeto não implementa autenticação, então os testes de integração cobrem respostas de sucesso e tratamento de erros, mas não fluxos de autenticação/autorização.
+- `Controllers/AuthControllerTests.cs` — cobre o fluxo de autenticação: login com credenciais válidas (200 + token), login com senha/email inválidos (401), e acesso a endpoint protegido sem token (401) e com token válido (200)
 
 ### Rodando os testes
 

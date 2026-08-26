@@ -8,19 +8,29 @@ using Xunit;
 namespace Fidelis.IntegrationTests.Controllers;
 
 [Collection("Integration Tests")]
-public class TutorControllerTests
+public class TutorControllerTests : IAsyncLifetime
 {
     // A API serializa a saída em camelCase (JsonSerializerDefaults.Web); o
     // HttpClient por padrão desserializa com correspondência case-sensitive,
     // então precisamos explicitar essas opções ao ler as respostas.
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
+    private HttpClient _client = null!;
 
     public TutorControllerTests(CustomWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _factory = factory;
     }
+
+    // POST /api/Tutor é público, mas GET/PUT/DELETE exigem [Authorize];
+    // por simplicidade, todos os testes desta classe já rodam autenticados.
+    public async Task InitializeAsync()
+    {
+        _client = await _factory.CreateAuthenticatedClientAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     private static TutorRequest NovoTutorRequest(string cpf) => new()
     {

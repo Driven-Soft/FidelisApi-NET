@@ -57,6 +57,15 @@ public class TutorService : ITutorService
         using var activity = ActivitySource.StartActivity("Tutor.Create");
         activity?.SetTag("tutor.nome", request.Nome);
 
+        var emailJaCadastrado = _repository.GetAll()
+            .Any(t => t.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase));
+
+        if (emailJaCadastrado)
+        {
+            _logger.LogWarning("Tentativa de cadastro com email já existente: {TutorEmail}", request.Email);
+            throw new InvalidOperationException("Já existe um tutor cadastrado com este email.");
+        }
+
         var tutor = request.ToDomain();
         _repository.Add(tutor);
         _repository.SaveChanges();

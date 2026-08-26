@@ -23,7 +23,12 @@ try
     // Substitui o logger padrão do ASP.NET Core pelo Serilog.
     builder.Host.UseSerilog();
 
-    builder.Services.AddControllers();
+    // Todos os endpoints exigem [Authorize] por padrão; use [AllowAnonymous]
+    // nos endpoints públicos (login, cadastro de tutor).
+    builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add(new Microsoft.AspNetCore.Mvc.Authorization.AuthorizeFilter());
+    });
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
@@ -31,6 +36,7 @@ try
     builder.Services.AddServices();
     builder.Services.AddRepositories();
     builder.Services.AddDbContext(builder.Configuration);
+    builder.Services.AddJwtAuthentication(builder.Configuration);
 
     // Observabilidade: tracing distribuído e métricas via OpenTelemetry.
     builder.Services.AddObservability();
@@ -55,6 +61,7 @@ try
 
     app.UseHttpsRedirection();
     app.UseExceptionHandler();
+    app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
 

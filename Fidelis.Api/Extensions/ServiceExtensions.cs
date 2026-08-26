@@ -7,6 +7,7 @@ public static class ServiceExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClinicaService, ClinicaService>();
         services.AddScoped<IComportamentoService, ComportamentoService>();
         services.AddScoped<IConsultaService, ConsultaService>();

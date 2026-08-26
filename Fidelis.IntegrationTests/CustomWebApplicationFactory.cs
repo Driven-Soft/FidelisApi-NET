@@ -1,3 +1,7 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Fidelis.Application.DTOs;
 using Fidelis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -52,5 +56,41 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         var scope = Services.CreateScope();
         return scope.ServiceProvider.GetRequiredService<FidelisContext>();
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Cadastra um tutor de teste (endpoint público) e faz login em seguida,
+    /// devolvendo um HttpClient já com o header "Authorization: Bearer {token}"
+    /// configurado, pronto para chamar os endpoints protegidos por [Authorize].
+    /// </summary>
+    public async Task<HttpClient> CreateAuthenticatedClientAsync()
+    {
+        var client = CreateClient();
+        var cpf = Guid.NewGuid().ToString("N")[..11];
+        var email = $"{Guid.NewGuid():N}@example.com";
+        const string senha = "123456";
+
+        await client.PostAsJsonAsync("/api/Tutor", new TutorRequest
+        {
+            Cpf = cpf,
+            Nome = "Usuario de Teste",
+            Email = email,
+            Senha = senha,
+            Telefone = "11988476632",
+            Endereco = "Rua de Teste, 1"
+        });
+
+        var loginResponse = await client.PostAsJsonAsync("/api/Auth/login", new LoginRequest
+        {
+            Email = email,
+            Senha = senha
+        });
+
+        var login = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.Token);
+
+        return client;
     }
 }

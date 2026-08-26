@@ -29,6 +29,21 @@ public static class SwaggerExtensions
                 }
             });
 
+            var jwtScheme = new OpenApiSecurityScheme
+            {
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Name = "Authorization",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.Http,
+                Description = "Informe apenas o token JWT obtido em POST /api/Auth/login (sem o prefixo 'Bearer ')."
+            };
+            options.AddSecurityDefinition("Bearer", jwtScheme);
+            options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+            });
+
             var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
             options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);

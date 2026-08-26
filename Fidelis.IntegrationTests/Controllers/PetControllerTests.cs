@@ -9,18 +9,26 @@ using Xunit;
 namespace Fidelis.IntegrationTests.Controllers;
 
 [Collection("Integration Tests")]
-public class PetControllerTests
+public class PetControllerTests : IAsyncLifetime
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly CustomWebApplicationFactory _factory;
-    private readonly HttpClient _client;
+    private HttpClient _client = null!;
 
     public PetControllerTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = factory.CreateClient();
     }
+
+    // Os endpoints de Pet exigem [Authorize]; cada teste roda com um cliente
+    // já autenticado (tutor de teste cadastrado + login feito automaticamente).
+    public async Task InitializeAsync()
+    {
+        _client = await _factory.CreateAuthenticatedClientAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     /// <summary>
     /// Cria um Tutor diretamente no banco InMemory (via DbContext) para servir

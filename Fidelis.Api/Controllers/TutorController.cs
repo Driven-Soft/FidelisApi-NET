@@ -1,5 +1,6 @@
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -45,6 +46,7 @@ public class TutorController : ControllerBase
     /// Cria um novo tutor.
     /// </summary>
     [HttpPost]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] TutorRequest request)
