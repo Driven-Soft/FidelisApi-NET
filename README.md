@@ -136,6 +136,67 @@ Quando estiver em ambiente de desenvolvimento, o Swagger fica disponível em:
 
 > A porta pode variar conforme o perfil de execução configurado no seu ambiente.
 
+## 🚀 Início rápido — o que fazer ao abrir o Swagger
+
+Com a API rodando, abra `http://localhost:5232/swagger` e siga esta ordem. **A API é protegida por JWT**, então quase tudo exige estar autenticado antes de testar.
+
+### Passo 1 — Cadastre um tutor (endpoint público, não precisa de token)
+
+Abra **`POST /api/Tutor`** → `Try it out` → cole:
+
+```json
+{
+  "cpf": "11122233344",
+  "nome": "Maria Teste",
+  "email": "maria.teste01@example.com",
+  "senha": "123456",
+  "telefone": "11988476632",
+  "endereco": "Rua das Flores, 100"
+}
+```
+`Execute`. Deve retornar **201 Created**.
+
+> ⚠️ Se aparecer `400` com "Já existe um tutor cadastrado com este email", é porque você já testou com esse e-mail antes — troque o e-mail ou pule direto para o Passo 2 usando o e-mail que já existe.
+
+### Passo 2 — Faça login para obter o token
+
+Abra **`POST /api/Auth/login`** → `Try it out` → cole:
+
+```json
+{
+  "email": "maria.teste01@example.com",
+  "senha": "123456"
+}
+```
+`Execute`. Deve retornar **200 OK** com um corpo assim:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "expiraEm": "...",
+  "tutorId": 1,
+  "nome": "Maria Teste"
+}
+```
+**Copie o valor de `token`** (sem as aspas).
+
+### Passo 3 — Autorize no Swagger
+
+Clique no botão **🔒 Authorize** no canto superior direito da página. Cole o token copiado no campo (não escreva `Bearer`, o Swagger já adiciona isso sozinho). Clique em **Authorize** e depois em **Close**.
+
+### Passo 4 — Agora todos os endpoints estão liberados
+
+Com o cadeado fechado, teste qualquer endpoint normalmente, por exemplo **`GET /api/Pet`** → `Try it out` → `Execute`. Deve retornar **200 OK**.
+
+Se você tentar chamar um endpoint protegido **sem** ter feito o Passo 3, vai receber **401 Unauthorized** — isso é esperado, não é bug.
+
+### Ordem sugerida para criar dados de teste
+
+Como as entidades têm dependências entre si (ex: um Pet precisa de um Tutor, uma Consulta precisa de um Pet e um Veterinário), siga esta ordem ao criar registros:
+
+`Tutor → Clinica → Veterinario → Pet → Consulta → (Exame | Prescricao → Medicamento) | (Vacinacao | Vermifugacao | HistoricoPeso | Comportamento | Recomendacao | Lembrete)`
+
+Sempre anote o `id` retornado por cada `POST` — ele será usado como chave estrangeira (`tutorId`, `petId`, `veterinarioId`, etc.) nos próximos cadastros.
+
 ## Autenticação
 
 A API usa **JWT Bearer** para proteger seus endpoints. O fluxo é:
