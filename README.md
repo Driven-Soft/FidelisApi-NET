@@ -148,7 +148,7 @@ Abra **`POST /api/Tutor`** → `Try it out` → cole:
 {
   "cpf": "11122233344",
   "nome": "Maria Teste",
-  "email": "maria.teste01@example.com",
+  "email": "maria.teste7@example.com",
   "senha": "123456",
   "telefone": "11988476632",
   "endereco": "Rua das Flores, 100"
@@ -164,7 +164,7 @@ Abra **`POST /api/Auth/login`** → `Try it out` → cole:
 
 ```json
 {
-  "email": "maria.teste01@example.com",
+  "email": "maria.teste7@example.com",
   "senha": "123456"
 }
 ```
