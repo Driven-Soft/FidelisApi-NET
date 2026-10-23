@@ -1,5 +1,6 @@
 using Fidelis.Application.Services.Implementations;
 using Fidelis.Application.Services.Interfaces;
+using Fidelis.Infrastructure.Persistence;
 
 namespace Fidelis.Api.Extensions;
 
@@ -24,6 +25,7 @@ public static class ServiceExtensions
         services.AddScoped<IVeterinarioService, VeterinarioService>();
         services.AddScoped<IRegistroDiarioService, RegistroDiarioService>();
         services.AddScoped<IAuditoriaService, AuditoriaService>();
+        services.AddScoped<IOraclePackageService, OraclePackageService>();
 
         return services;
     }
