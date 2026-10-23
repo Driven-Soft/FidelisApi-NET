@@ -1,3 +1,4 @@
+using Fidelis.Api.Hateoas;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,10 @@ namespace Fidelis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 [SwaggerTag("Agendamento e histórico de consultas veterinárias.")]
-public class ConsultaController : ControllerBase
+public class ConsultaController : HateoasController
 {
     private readonly IConsultaService _service;
 
@@ -18,76 +20,66 @@ public class ConsultaController : ControllerBase
         _service = service;
     }
 
-    /// <summary>
-    /// Lista consultas cadastradas.
-    /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetAll()
+    [SwaggerOperation(
+        Summary = "Lista consultas com paginação, ordenação e filtros",
+        Description = "Parâmetros: page, pageSize (máx. 100), sortBy (qualquer campo do recurso), sortDirection (asc|desc) e filtros: petId, veterinarioId, tipo, dataInicio, dataFim.")]
+    [ProducesResponseType(typeof(PagedResponse<ConsultaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult GetAll([FromQuery] ConsultaQueryParameters query)
     {
-        var consultas = _service.GetAll();
-        return Ok(consultas);
+        var result = _service.GetAll(query);
+        return Ok(ToPagedResponse(result, consulta => consulta.Id));
     }
 
-    /// <summary>
-    /// Busca uma consulta por id.
-    /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Busca uma consulta por id")]
+    [ProducesResponseType(typeof(ResourceResponse<ConsultaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
         var consulta = _service.GetById(id);
-        return consulta is null ? NotFound() : Ok(consulta);
+        return consulta is null ? NotFound() : Ok(ToResource(consulta, consulta.Id));
     }
 
-    /// <summary>
-    /// Cria uma nova consulta.
-    /// </summary>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerOperation(Summary = "Cadastra uma nova consulta")]
+    [ProducesResponseType(typeof(ResourceResponse<ConsultaResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] ConsultaRequest request)
     {
         var created = _service.Create(request);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedResource(created, created.Id);
     }
 
-    /// <summary>
-    /// Atualiza uma consulta existente.
-    /// </summary>
     [HttpPut("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza todos os dados de uma consulta")]
+    [ProducesResponseType(typeof(ResourceResponse<ConsultaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Update(int id, [FromBody] ConsultaRequest request)
     {
         var updated = _service.Update(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Atualiza parcialmente uma consulta.
-    /// </summary>
     [HttpPatch("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza parcialmente uma consulta")]
+    [ProducesResponseType(typeof(ResourceResponse<ConsultaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Patch(int id, [FromBody] ConsultaPatchRequest request)
     {
         var updated = _service.Patch(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Remove uma consulta por id.
-    /// </summary>
     [HttpDelete("{id:int}")]
+    [SwaggerOperation(Summary = "Remove uma consulta")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Delete(int id)
     {
-        var deleted = _service.Delete(id);
-        return deleted ? NoContent() : NotFound();
+        return _service.Delete(id) ? NoContent() : NotFound();
     }
 }

@@ -5,7 +5,7 @@ namespace Fidelis.Api.Extensions;
 
 public static class ServiceExtensions
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddServices(this IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClinicaService, ClinicaService>();
@@ -22,12 +22,9 @@ public static class ServiceExtensions
         services.AddScoped<IVacinacaoService, VacinacaoService>();
         services.AddScoped<IVermifugacaoService, VermifugacaoService>();
         services.AddScoped<IVeterinarioService, VeterinarioService>();
+        services.AddScoped<IRegistroDiarioService, RegistroDiarioService>();
+        services.AddScoped<IAuditoriaService, AuditoriaService>();
 
         return services;
-    }
-
-    public static IServiceCollection AddServices(this IServiceCollection services)
-    {
-        return services.AddApplicationServices();
     }
 }

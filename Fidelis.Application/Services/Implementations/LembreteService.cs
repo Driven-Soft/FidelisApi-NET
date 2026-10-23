@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class LembreteService : ILembreteService
         _repository = repository;
     }
 
-    public List<LembreteResponse> GetAll()
+    public PagedResult<LembreteResponse> GetAll(LembreteQueryParameters query)
     {
-        var lembretes = _repository.GetAll();
-        return lembretes.Select(lembrete => new LembreteResponse(lembrete)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(lembrete => new LembreteResponse(lembrete));
     }
 
     public LembreteResponse? GetById(int id)

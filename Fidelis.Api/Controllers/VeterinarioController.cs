@@ -1,3 +1,4 @@
+using Fidelis.Api.Hateoas;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,10 @@ namespace Fidelis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 [SwaggerTag("Cadastro de veterinários e profissionais responsáveis.")]
-public class VeterinarioController : ControllerBase
+public class VeterinarioController : HateoasController
 {
     private readonly IVeterinarioService _service;
 
@@ -18,76 +20,66 @@ public class VeterinarioController : ControllerBase
         _service = service;
     }
 
-    /// <summary>
-    /// Lista veterinarios cadastrados.
-    /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetAll()
+    [SwaggerOperation(
+        Summary = "Lista veterinários com paginação, ordenação e filtros",
+        Description = "Parâmetros: page, pageSize (máx. 100), sortBy (qualquer campo do recurso), sortDirection (asc|desc) e filtros: nome, crmv, especialidade, clinicaId.")]
+    [ProducesResponseType(typeof(PagedResponse<VeterinarioResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult GetAll([FromQuery] VeterinarioQueryParameters query)
     {
-        var veterinarios = _service.GetAll();
-        return Ok(veterinarios);
+        var result = _service.GetAll(query);
+        return Ok(ToPagedResponse(result, veterinario => veterinario.Id));
     }
 
-    /// <summary>
-    /// Busca um veterinario por id.
-    /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Busca um veterinário por id")]
+    [ProducesResponseType(typeof(ResourceResponse<VeterinarioResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
         var veterinario = _service.GetById(id);
-        return veterinario is null ? NotFound() : Ok(veterinario);
+        return veterinario is null ? NotFound() : Ok(ToResource(veterinario, veterinario.Id));
     }
 
-    /// <summary>
-    /// Cria um novo veterinario.
-    /// </summary>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerOperation(Summary = "Cadastra um novo veterinário")]
+    [ProducesResponseType(typeof(ResourceResponse<VeterinarioResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] VeterinarioRequest request)
     {
         var created = _service.Create(request);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedResource(created, created.Id);
     }
 
-    /// <summary>
-    /// Atualiza um veterinario existente.
-    /// </summary>
     [HttpPut("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza todos os dados de um veterinário")]
+    [ProducesResponseType(typeof(ResourceResponse<VeterinarioResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Update(int id, [FromBody] VeterinarioRequest request)
     {
         var updated = _service.Update(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Atualiza parcialmente um veterinario.
-    /// </summary>
     [HttpPatch("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza parcialmente um veterinário")]
+    [ProducesResponseType(typeof(ResourceResponse<VeterinarioResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Patch(int id, [FromBody] VeterinarioPatchRequest request)
     {
         var updated = _service.Patch(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Remove um veterinario por id.
-    /// </summary>
     [HttpDelete("{id:int}")]
+    [SwaggerOperation(Summary = "Remove um veterinário")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Delete(int id)
     {
-        var deleted = _service.Delete(id);
-        return deleted ? NoContent() : NotFound();
+        return _service.Delete(id) ? NoContent() : NotFound();
     }
 }

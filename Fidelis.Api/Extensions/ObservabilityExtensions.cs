@@ -5,12 +5,6 @@ using OpenTelemetry.Trace;
 
 namespace Fidelis.Api.Extensions;
 
-/// <summary>
-/// Configura o OpenTelemetry para tracing distribuído e métricas de aplicação.
-/// Ambos os sinais, por padrão, são exportados para o console (útil em ambiente
-/// de desenvolvimento/estudo). Em produção, o ConsoleExporter pode ser trocado
-/// por OTLP apontando para um coletor (Grafana, Jaeger, Prometheus, etc.).
-/// </summary>
 public static class ObservabilityExtensions
 {
     public static IServiceCollection AddObservability(this IServiceCollection services)
@@ -23,18 +17,18 @@ public static class ObservabilityExtensions
             {
                 tracing
                     .SetResourceBuilder(resourceBuilder)
-                    .AddAspNetCoreInstrumentation() // Captura requisições HTTP de entrada (API)
-                    .AddHttpClientInstrumentation() // Captura chamadas HTTP de saída
-                    .AddSource(TelemetryConstants.ServiceName) // Spans customizados criados nos Services
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddSource(TelemetryConstants.ServiceName)
                     .AddConsoleExporter();
             })
             .WithMetrics(metrics =>
             {
                 metrics
                     .SetResourceBuilder(resourceBuilder)
-                    .AddAspNetCoreInstrumentation() // Métricas padrão do ASP.NET Core (latência, requests/s...)
+                    .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddMeter(TelemetryConstants.MeterName) // Counters customizados criados nos Services
+                    .AddMeter(TelemetryConstants.MeterName)
                     .AddConsoleExporter();
             });
 

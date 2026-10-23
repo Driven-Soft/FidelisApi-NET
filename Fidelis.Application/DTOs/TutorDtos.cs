@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -74,3 +76,24 @@ public class TutorResponse
     }
 }
 
+public class TutorQueryParameters : QueryParameters
+{
+    public string? Nome { get; set; }
+
+    public string? Email { get; set; }
+
+    public string? Cpf { get; set; }
+
+    public IReadOnlyList<Expression<Func<Tutor, bool>>> ToFilters()
+    {
+        var nome = TextFilter.Normalize(Nome);
+        var email = TextFilter.Normalize(Email);
+        var cpf = Cpf?.Trim();
+
+        return new FilterBuilder<Tutor>()
+            .AddIf(nome is not null, tutor => tutor.Nome.ToUpper().Contains(nome!))
+            .AddIf(email is not null, tutor => tutor.Email.ToUpper().Contains(email!))
+            .AddIf(!string.IsNullOrWhiteSpace(cpf), tutor => tutor.Cpf == cpf)
+            .Build();
+    }
+}

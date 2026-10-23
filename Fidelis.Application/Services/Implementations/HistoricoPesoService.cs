@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class HistoricoPesoService : IHistoricoPesoService
         _repository = repository;
     }
 
-    public List<HistoricoPesoResponse> GetAll()
+    public PagedResult<HistoricoPesoResponse> GetAll(HistoricoPesoQueryParameters query)
     {
-        var historicos = _repository.GetAll();
-        return historicos.Select(historico => new HistoricoPesoResponse(historico)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(historicoPeso => new HistoricoPesoResponse(historicoPeso));
     }
 
     public HistoricoPesoResponse? GetById(int id)

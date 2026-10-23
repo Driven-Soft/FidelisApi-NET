@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class VacinacaoService : IVacinacaoService
         _repository = repository;
     }
 
-    public List<VacinacaoResponse> GetAll()
+    public PagedResult<VacinacaoResponse> GetAll(VacinacaoQueryParameters query)
     {
-        var vacinacoes = _repository.GetAll();
-        return vacinacoes.Select(vacinacao => new VacinacaoResponse(vacinacao)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(vacinacao => new VacinacaoResponse(vacinacao));
     }
 
     public VacinacaoResponse? GetById(int id)

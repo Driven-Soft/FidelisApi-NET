@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class RecomendacaoService : IRecomendacaoService
         _repository = repository;
     }
 
-    public List<RecomendacaoResponse> GetAll()
+    public PagedResult<RecomendacaoResponse> GetAll(RecomendacaoQueryParameters query)
     {
-        var recomendacoes = _repository.GetAll();
-        return recomendacoes.Select(recomendacao => new RecomendacaoResponse(recomendacao)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(recomendacao => new RecomendacaoResponse(recomendacao));
     }
 
     public RecomendacaoResponse? GetById(int id)

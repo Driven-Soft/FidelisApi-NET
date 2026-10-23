@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Diagnostics;
 using Fidelis.Application.Interfaces.Repositories;
@@ -25,15 +26,17 @@ public class TutorService : ITutorService
         _logger = logger;
     }
 
-    public List<TutorResponse> GetAll()
+    public PagedResult<TutorResponse> GetAll(TutorQueryParameters query)
     {
         using var activity = ActivitySource.StartActivity("Tutor.GetAll");
+        activity?.SetTag("query.page", query.Page);
+        activity?.SetTag("query.pageSize", query.PageSize);
 
-        var tutores = _repository.GetAll();
+        var result = _repository.GetPaged(query, query.ToFilters());
 
-        _logger.LogInformation("Consulta de tutores retornou {TutorCount} registros", tutores.Count);
+        _logger.LogInformation("Consulta de tutores retornou {TutorCount} registros de {TotalItems}", result.Items.Count, result.TotalItems);
 
-        return tutores.Select(tutor => new TutorResponse(tutor)).ToList();
+        return result.Map(tutor => new TutorResponse(tutor));
     }
 
     public TutorResponse? GetById(int id)
@@ -57,10 +60,7 @@ public class TutorService : ITutorService
         using var activity = ActivitySource.StartActivity("Tutor.Create");
         activity?.SetTag("tutor.nome", request.Nome);
 
-        var emailJaCadastrado = _repository.GetAll()
-            .Any(t => t.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase));
-
-        if (emailJaCadastrado)
+        if (_repository.ExistsByEmail(request.Email))
         {
             _logger.LogWarning("Tentativa de cadastro com email já existente: {TutorEmail}", request.Email);
             throw new InvalidOperationException("Já existe um tutor cadastrado com este email.");

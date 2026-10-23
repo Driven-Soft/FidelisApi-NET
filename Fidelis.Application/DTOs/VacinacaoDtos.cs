@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -58,3 +60,28 @@ public class VacinacaoResponse
     }
 }
 
+public class VacinacaoQueryParameters : QueryParameters
+{
+    public int? PetId { get; set; }
+
+    public int? VeterinarioId { get; set; }
+
+    public string? Vacina { get; set; }
+
+    public DateTime? ProximaAte { get; set; }
+
+    public IReadOnlyList<Expression<Func<Vacinacao, bool>>> ToFilters()
+    {
+        var petId = PetId.GetValueOrDefault();
+        var veterinarioId = VeterinarioId.GetValueOrDefault();
+        var vacina = TextFilter.Normalize(Vacina);
+        var proximaAte = ProximaAte.GetValueOrDefault();
+
+        return new FilterBuilder<Vacinacao>()
+            .AddIf(PetId.HasValue, vacinacao => vacinacao.PetId == petId)
+            .AddIf(VeterinarioId.HasValue, vacinacao => vacinacao.VeterinarioId == veterinarioId)
+            .AddIf(vacina is not null, vacinacao => vacinacao.VacinaAplicada.ToUpper().Contains(vacina!))
+            .AddIf(ProximaAte.HasValue, vacinacao => vacinacao.DataProxima <= proximaAte)
+            .Build();
+    }
+}

@@ -25,6 +25,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Fidelis.Application\Fidelis.Application.csproj" />
         <ProjectReference Include="..\Fidelis.Domain\Fidelis.Domain.csproj" />
+        <ProjectReference Include="..\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

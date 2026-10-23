@@ -34,7 +34,7 @@ public class Lembrete
         DataPrevista = dataPrevista;
         TutorId = tutorId;
         PetId = petId;
-        Status = 'P'; // Pendente
+        Status = 'P';
     }
 
     public void UpdateTipo(string tipo)

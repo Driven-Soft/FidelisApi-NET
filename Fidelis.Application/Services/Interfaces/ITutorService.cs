@@ -1,10 +1,11 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 
 namespace Fidelis.Application.Services.Interfaces;
 
 public interface ITutorService
 {
-    List<TutorResponse> GetAll();
+    PagedResult<TutorResponse> GetAll(TutorQueryParameters query);
     TutorResponse? GetById(int id);
     TutorResponse Create(TutorRequest request);
     TutorResponse? Update(int id, TutorRequest request);

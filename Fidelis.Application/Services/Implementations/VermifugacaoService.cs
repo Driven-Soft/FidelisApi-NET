@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class VermifugacaoService : IVermifugacaoService
         _repository = repository;
     }
 
-    public List<VermifugacaoResponse> GetAll()
+    public PagedResult<VermifugacaoResponse> GetAll(VermifugacaoQueryParameters query)
     {
-        var vermifugacoes = _repository.GetAll();
-        return vermifugacoes.Select(vermifugacao => new VermifugacaoResponse(vermifugacao)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(vermifugacao => new VermifugacaoResponse(vermifugacao));
     }
 
     public VermifugacaoResponse? GetById(int id)

@@ -2,6 +2,7 @@ using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Infrastructure.Persistence;
 using Fidelis.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Oracle.EntityFrameworkCore.Infrastructure;
 
 namespace Fidelis.Api.Extensions;
 
@@ -33,7 +34,8 @@ public static class PersistenceExtensions
             ?? throw new InvalidOperationException("FidelisOracle connection string is not configured.");
 
         services.AddDbContext<FidelisContext>(options =>
-            options.UseOracle(connectionString));
+            options.UseOracle(connectionString, oracle =>
+                oracle.UseOracleSQLCompatibility(OracleSQLCompatibility.DatabaseVersion19)));
 
         return services;
     }

@@ -1,10 +1,11 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 
 namespace Fidelis.Application.Services.Interfaces;
 
 public interface IMedicamentoService
 {
-    List<MedicamentoResponse> GetAll();
+    PagedResult<MedicamentoResponse> GetAll(MedicamentoQueryParameters query);
     MedicamentoResponse? GetById(int id);
     MedicamentoResponse Create(MedicamentoRequest request);
     MedicamentoResponse? Update(int id, MedicamentoRequest request);

@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -54,5 +56,31 @@ public class PrescricaoResponse
         DuracaoDias = prescricao.DuracaoDias;
         Observacao = prescricao.Observacao;
         ConsultaId = prescricao.ConsultaId;
+    }
+}
+
+public class PrescricaoQueryParameters : QueryParameters
+{
+    public int? ConsultaId { get; set; }
+
+    public string? Dosagem { get; set; }
+
+    public int? DuracaoMinimaDias { get; set; }
+
+    public int? DuracaoMaximaDias { get; set; }
+
+    public IReadOnlyList<Expression<Func<Prescricao, bool>>> ToFilters()
+    {
+        var consultaId = ConsultaId.GetValueOrDefault();
+        var dosagem = TextFilter.Normalize(Dosagem);
+        var duracaoMinima = DuracaoMinimaDias.GetValueOrDefault();
+        var duracaoMaxima = DuracaoMaximaDias.GetValueOrDefault();
+
+        return new FilterBuilder<Prescricao>()
+            .AddIf(ConsultaId.HasValue, prescricao => prescricao.ConsultaId == consultaId)
+            .AddIf(dosagem is not null, prescricao => prescricao.Dosagem.ToUpper().Contains(dosagem!))
+            .AddIf(DuracaoMinimaDias.HasValue, prescricao => prescricao.DuracaoDias >= duracaoMinima)
+            .AddIf(DuracaoMaximaDias.HasValue, prescricao => prescricao.DuracaoDias <= duracaoMaxima)
+            .Build();
     }
 }

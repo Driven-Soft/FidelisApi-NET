@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Implementations;
@@ -11,7 +13,7 @@ namespace Fidelis.UnitTests.Services;
 public class PetServiceTests
 {
     private readonly Mock<IPetRepository> _repositoryMock;
-    private readonly PetService _sut; // "sut" = System Under Test
+    private readonly PetService _sut;
 
     public PetServiceTests()
     {
@@ -19,25 +21,22 @@ public class PetServiceTests
         _sut = new PetService(_repositoryMock.Object, NullLogger<PetService>.Instance);
     }
 
+    private static PetRequest NovoRequest(string nome = "Rex") => new()
+    {
+        Nome = nome,
+        Especie = "Cachorro",
+        Raca = "Labrador",
+        Sexo = 'M',
+        DataNascimento = new DateTime(2020, 1, 1),
+        FotoUrl = "foto.jpg",
+        TutorId = 1
+    };
+
     [Fact]
     public void Create_RequestValido_AdicionaPetERetornaResponse()
     {
-        // Arrange
-        var request = new PetRequest
-        {
-            Nome = "Rex",
-            Especie = "Cachorro",
-            Raca = "Labrador",
-            Sexo = 'M',
-            DataNascimento = new DateTime(2020, 1, 1),
-            FotoUrl = "foto.jpg",
-            TutorId = 1
-        };
+        var result = _sut.Create(NovoRequest());
 
-        // Act
-        var result = _sut.Create(request);
-
-        // Assert
         Assert.Equal("Rex", result.Nome);
         Assert.Equal("Cachorro", result.Especie);
         _repositoryMock.Verify(r => r.Add(It.IsAny<Pet>()), Times.Once);
@@ -45,16 +44,23 @@ public class PetServiceTests
     }
 
     [Fact]
+    public void Create_SexoInvalido_LancaArgumentExceptionENaoPersiste()
+    {
+        var request = NovoRequest();
+        request.Sexo = 'X';
+
+        Assert.Throws<ArgumentException>(() => _sut.Create(request));
+        _repositoryMock.Verify(r => r.SaveChanges(), Times.Never);
+    }
+
+    [Fact]
     public void GetById_PetExistente_RetornaPetResponse()
     {
-        // Arrange
         var pet = new Pet("Rex", "Cachorro", "Labrador", 'M', new DateTime(2020, 1, 1), "foto.jpg", 1);
         _repositoryMock.Setup(r => r.GetById(1)).Returns(pet);
 
-        // Act
         var result = _sut.GetById(1);
 
-        // Assert
         Assert.NotNull(result);
         Assert.Equal("Rex", result!.Nome);
     }
@@ -62,54 +68,42 @@ public class PetServiceTests
     [Fact]
     public void GetById_PetInexistente_RetornaNull()
     {
-        // Arrange
         _repositoryMock.Setup(r => r.GetById(It.IsAny<int>())).Returns((Pet?)null);
 
-        // Act
         var result = _sut.GetById(999);
 
-        // Assert
         Assert.Null(result);
     }
 
     [Fact]
-    public void GetAll_RepositorioComPets_RetornaListaDeResponses()
+    public void GetAll_RepositorioComPets_RetornaPaginaComResponsesEMetadados()
     {
-        // Arrange
         var pets = new List<Pet>
         {
             new("Rex", "Cachorro", "Labrador", 'M', new DateTime(2020, 1, 1), "foto1.jpg", 1),
             new("Mimi", "Gato", "Persa", 'F', new DateTime(2021, 3, 1), "foto2.jpg", 1)
         };
-        _repositoryMock.Setup(r => r.GetAll()).Returns(pets);
+        var query = new PetQueryParameters { Page = 1, PageSize = 2 };
+        _repositoryMock
+            .Setup(r => r.GetPaged(query, It.IsAny<IEnumerable<Expression<Func<Pet, bool>>>>()))
+            .Returns(new PagedResult<Pet>(pets, 1, 2, 5));
 
-        // Act
-        var result = _sut.GetAll();
+        var result = _sut.GetAll(query);
 
-        // Assert
-        Assert.Equal(2, result.Count);
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(5, result.TotalItems);
+        Assert.Equal(3, result.TotalPages);
+        Assert.True(result.HasNext);
+        Assert.Equal("Rex", result.Items[0].Nome);
     }
 
     [Fact]
     public void Update_PetInexistente_RetornaNullENaoChamaSaveChanges()
     {
-        // Arrange
         _repositoryMock.Setup(r => r.GetById(It.IsAny<int>())).Returns((Pet?)null);
-        var request = new PetRequest
-        {
-            Nome = "Rex",
-            Especie = "Cachorro",
-            Raca = "Labrador",
-            Sexo = 'M',
-            DataNascimento = new DateTime(2020, 1, 1),
-            FotoUrl = "foto.jpg",
-            TutorId = 1
-        };
 
-        // Act
-        var result = _sut.Update(999, request);
+        var result = _sut.Update(999, NovoRequest());
 
-        // Assert
         Assert.Null(result);
         _repositoryMock.Verify(r => r.SaveChanges(), Times.Never);
     }
@@ -117,24 +111,11 @@ public class PetServiceTests
     [Fact]
     public void Update_PetExistente_AtualizaERetornaResponseAtualizado()
     {
-        // Arrange
         var pet = new Pet("Rex", "Cachorro", "Labrador", 'M', new DateTime(2020, 1, 1), "foto.jpg", 1);
         _repositoryMock.Setup(r => r.GetById(1)).Returns(pet);
-        var request = new PetRequest
-        {
-            Nome = "Rex Atualizado",
-            Especie = "Cachorro",
-            Raca = "Labrador",
-            Sexo = 'M',
-            DataNascimento = new DateTime(2020, 1, 1),
-            FotoUrl = "foto-nova.jpg",
-            TutorId = 1
-        };
 
-        // Act
-        var result = _sut.Update(1, request);
+        var result = _sut.Update(1, NovoRequest("Rex Atualizado"));
 
-        // Assert
         Assert.NotNull(result);
         Assert.Equal("Rex Atualizado", result!.Nome);
         _repositoryMock.Verify(r => r.Update(pet), Times.Once);
@@ -142,16 +123,25 @@ public class PetServiceTests
     }
 
     [Fact]
-    public void Delete_PetExistente_RemoveERetornaTrue()
+    public void Patch_ApenasRacaInformada_MantemDemaisCampos()
     {
-        // Arrange
         var pet = new Pet("Rex", "Cachorro", "Labrador", 'M', new DateTime(2020, 1, 1), "foto.jpg", 1);
         _repositoryMock.Setup(r => r.GetById(1)).Returns(pet);
 
-        // Act
+        var result = _sut.Patch(1, new PetPatchRequest { Raca = "Golden" });
+
+        Assert.Equal("Golden", result!.Raca);
+        Assert.Equal("Rex", result.Nome);
+    }
+
+    [Fact]
+    public void Delete_PetExistente_RemoveERetornaTrue()
+    {
+        var pet = new Pet("Rex", "Cachorro", "Labrador", 'M', new DateTime(2020, 1, 1), "foto.jpg", 1);
+        _repositoryMock.Setup(r => r.GetById(1)).Returns(pet);
+
         var result = _sut.Delete(1);
 
-        // Assert
         Assert.True(result);
         _repositoryMock.Verify(r => r.Delete(pet), Times.Once);
         _repositoryMock.Verify(r => r.SaveChanges(), Times.Once);
@@ -160,13 +150,10 @@ public class PetServiceTests
     [Fact]
     public void Delete_PetInexistente_RetornaFalseSemChamarRepositorio()
     {
-        // Arrange
         _repositoryMock.Setup(r => r.GetById(It.IsAny<int>())).Returns((Pet?)null);
 
-        // Act
         var result = _sut.Delete(999);
 
-        // Assert
         Assert.False(result);
         _repositoryMock.Verify(r => r.Delete(It.IsAny<Pet>()), Times.Never);
         _repositoryMock.Verify(r => r.SaveChanges(), Times.Never);

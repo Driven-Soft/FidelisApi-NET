@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -53,3 +55,28 @@ public class ExameResponse
     }
 }
 
+public class ExameQueryParameters : QueryParameters
+{
+    public int? ConsultaId { get; set; }
+
+    public string? Tipo { get; set; }
+
+    public DateTime? DataInicio { get; set; }
+
+    public DateTime? DataFim { get; set; }
+
+    public IReadOnlyList<Expression<Func<Exame, bool>>> ToFilters()
+    {
+        var consultaId = ConsultaId.GetValueOrDefault();
+        var tipo = TextFilter.Normalize(Tipo);
+        var dataInicio = DataInicio.GetValueOrDefault();
+        var dataFim = DataFim.GetValueOrDefault();
+
+        return new FilterBuilder<Exame>()
+            .AddIf(ConsultaId.HasValue, exame => exame.ConsultaId == consultaId)
+            .AddIf(tipo is not null, exame => exame.Tipo.ToUpper().Contains(tipo!))
+            .AddIf(DataInicio.HasValue, exame => exame.Data >= dataInicio)
+            .AddIf(DataFim.HasValue, exame => exame.Data <= dataFim)
+            .Build();
+    }
+}

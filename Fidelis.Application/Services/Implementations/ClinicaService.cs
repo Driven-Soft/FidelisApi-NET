@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class ClinicaService : IClinicaService
         _repository = repository;
     }
 
-    public List<ClinicaResponse> GetAll()
+    public PagedResult<ClinicaResponse> GetAll(ClinicaQueryParameters query)
     {
-        var clinicas = _repository.GetAll();
-        return clinicas.Select(clinica => new ClinicaResponse(clinica)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(clinica => new ClinicaResponse(clinica));
     }
 
     public ClinicaResponse? GetById(int id)

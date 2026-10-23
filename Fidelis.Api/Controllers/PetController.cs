@@ -1,3 +1,4 @@
+using Fidelis.Api.Hateoas;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,10 @@ namespace Fidelis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 [SwaggerTag("Cadastro de pets e seus dados principais.")]
-public class PetController : ControllerBase
+public class PetController : HateoasController
 {
     private readonly IPetService _service;
 
@@ -18,76 +20,66 @@ public class PetController : ControllerBase
         _service = service;
     }
 
-    /// <summary>
-    /// Lista pets cadastrados.
-    /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetAll()
+    [SwaggerOperation(
+        Summary = "Lista pets com paginação, ordenação e filtros",
+        Description = "Parâmetros: page, pageSize (máx. 100), sortBy (qualquer campo do recurso), sortDirection (asc|desc) e filtros: nome, especie, raca, sexo, status, tutorId, clinicaId.")]
+    [ProducesResponseType(typeof(PagedResponse<PetResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult GetAll([FromQuery] PetQueryParameters query)
     {
-        var pets = _service.GetAll();
-        return Ok(pets);
+        var result = _service.GetAll(query);
+        return Ok(ToPagedResponse(result, pet => pet.Id));
     }
 
-    /// <summary>
-    /// Busca um pet por id.
-    /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Busca um pet por id")]
+    [ProducesResponseType(typeof(ResourceResponse<PetResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
         var pet = _service.GetById(id);
-        return pet is null ? NotFound() : Ok(pet);
+        return pet is null ? NotFound() : Ok(ToResource(pet, pet.Id));
     }
 
-    /// <summary>
-    /// Cria um novo pet.
-    /// </summary>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerOperation(Summary = "Cadastra um novo pet")]
+    [ProducesResponseType(typeof(ResourceResponse<PetResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] PetRequest request)
     {
         var created = _service.Create(request);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedResource(created, created.Id);
     }
 
-    /// <summary>
-    /// Atualiza um pet existente.
-    /// </summary>
     [HttpPut("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza todos os dados de um pet")]
+    [ProducesResponseType(typeof(ResourceResponse<PetResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Update(int id, [FromBody] PetRequest request)
     {
         var updated = _service.Update(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Atualiza parcialmente um pet.
-    /// </summary>
     [HttpPatch("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza parcialmente um pet")]
+    [ProducesResponseType(typeof(ResourceResponse<PetResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Patch(int id, [FromBody] PetPatchRequest request)
     {
         var updated = _service.Patch(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Remove um pet por id.
-    /// </summary>
     [HttpDelete("{id:int}")]
+    [SwaggerOperation(Summary = "Remove um pet")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Delete(int id)
     {
-        var deleted = _service.Delete(id);
-        return deleted ? NoContent() : NotFound();
+        return _service.Delete(id) ? NoContent() : NotFound();
     }
 }

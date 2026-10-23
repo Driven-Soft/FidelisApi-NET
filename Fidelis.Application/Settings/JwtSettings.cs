@@ -1,9 +1,5 @@
 namespace Fidelis.Application.Settings;
 
-/// <summary>
-/// Configurações de geração/validação do token JWT, lidas da seção "Jwt"
-/// do appsettings.json.
-/// </summary>
 public class JwtSettings
 {
     public string Key { get; set; } = string.Empty;

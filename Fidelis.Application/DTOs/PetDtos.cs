@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -84,3 +86,40 @@ public class PetResponse
     }
 }
 
+public class PetQueryParameters : QueryParameters
+{
+    public string? Nome { get; set; }
+
+    public string? Especie { get; set; }
+
+    public string? Raca { get; set; }
+
+    public char? Sexo { get; set; }
+
+    public char? Status { get; set; }
+
+    public int? TutorId { get; set; }
+
+    public int? ClinicaId { get; set; }
+
+    public IReadOnlyList<Expression<Func<Pet, bool>>> ToFilters()
+    {
+        var nome = TextFilter.Normalize(Nome);
+        var especie = TextFilter.Normalize(Especie);
+        var raca = TextFilter.Normalize(Raca);
+        var sexo = char.ToUpperInvariant(Sexo.GetValueOrDefault());
+        var status = char.ToUpperInvariant(Status.GetValueOrDefault());
+        var tutorId = TutorId.GetValueOrDefault();
+        var clinicaId = ClinicaId.GetValueOrDefault();
+
+        return new FilterBuilder<Pet>()
+            .AddIf(nome is not null, pet => pet.Nome.ToUpper().Contains(nome!))
+            .AddIf(especie is not null, pet => pet.Especie.ToUpper().Contains(especie!))
+            .AddIf(raca is not null, pet => pet.Raca.ToUpper().Contains(raca!))
+            .AddIf(Sexo.HasValue, pet => pet.Sexo == sexo)
+            .AddIf(Status.HasValue, pet => pet.Status == status)
+            .AddIf(TutorId.HasValue, pet => pet.TutorId == tutorId)
+            .AddIf(ClinicaId.HasValue, pet => pet.ClinicaId == clinicaId)
+            .Build();
+    }
+}

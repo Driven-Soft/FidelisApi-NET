@@ -1,3 +1,4 @@
+using Fidelis.Api.Hateoas;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,10 @@ namespace Fidelis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 [SwaggerTag("Recomendações gerais para cuidados com o pet.")]
-public class RecomendacaoController : ControllerBase
+public class RecomendacaoController : HateoasController
 {
     private readonly IRecomendacaoService _service;
 
@@ -18,76 +20,66 @@ public class RecomendacaoController : ControllerBase
         _service = service;
     }
 
-    /// <summary>
-    /// Lista recomendacoes cadastradas.
-    /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetAll()
+    [SwaggerOperation(
+        Summary = "Lista recomendações com paginação, ordenação e filtros",
+        Description = "Parâmetros: page, pageSize (máx. 100), sortBy (qualquer campo do recurso), sortDirection (asc|desc) e filtros: petId, tipo, dataInicio, dataFim.")]
+    [ProducesResponseType(typeof(PagedResponse<RecomendacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult GetAll([FromQuery] RecomendacaoQueryParameters query)
     {
-        var recomendacoes = _service.GetAll();
-        return Ok(recomendacoes);
+        var result = _service.GetAll(query);
+        return Ok(ToPagedResponse(result, recomendacao => recomendacao.Id));
     }
 
-    /// <summary>
-    /// Busca uma recomendacao por id.
-    /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Busca uma recomendação por id")]
+    [ProducesResponseType(typeof(ResourceResponse<RecomendacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
         var recomendacao = _service.GetById(id);
-        return recomendacao is null ? NotFound() : Ok(recomendacao);
+        return recomendacao is null ? NotFound() : Ok(ToResource(recomendacao, recomendacao.Id));
     }
 
-    /// <summary>
-    /// Cria uma nova recomendacao.
-    /// </summary>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerOperation(Summary = "Cadastra uma nova recomendação")]
+    [ProducesResponseType(typeof(ResourceResponse<RecomendacaoResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] RecomendacaoRequest request)
     {
         var created = _service.Create(request);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedResource(created, created.Id);
     }
 
-    /// <summary>
-    /// Atualiza uma recomendacao existente.
-    /// </summary>
     [HttpPut("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza todos os dados de uma recomendação")]
+    [ProducesResponseType(typeof(ResourceResponse<RecomendacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Update(int id, [FromBody] RecomendacaoRequest request)
     {
         var updated = _service.Update(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Atualiza parcialmente uma recomendacao.
-    /// </summary>
     [HttpPatch("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza parcialmente uma recomendação")]
+    [ProducesResponseType(typeof(ResourceResponse<RecomendacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Patch(int id, [FromBody] RecomendacaoPatchRequest request)
     {
         var updated = _service.Patch(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Remove uma recomendacao por id.
-    /// </summary>
     [HttpDelete("{id:int}")]
+    [SwaggerOperation(Summary = "Remove uma recomendação")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Delete(int id)
     {
-        var deleted = _service.Delete(id);
-        return deleted ? NoContent() : NotFound();
+        return _service.Delete(id) ? NoContent() : NotFound();
     }
 }

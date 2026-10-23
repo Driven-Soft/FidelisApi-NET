@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -47,3 +49,28 @@ public class RecomendacaoResponse
     }
 }
 
+public class RecomendacaoQueryParameters : QueryParameters
+{
+    public int? PetId { get; set; }
+
+    public string? Tipo { get; set; }
+
+    public DateTime? DataInicio { get; set; }
+
+    public DateTime? DataFim { get; set; }
+
+    public IReadOnlyList<Expression<Func<Recomendacao, bool>>> ToFilters()
+    {
+        var petId = PetId.GetValueOrDefault();
+        var tipo = TextFilter.Normalize(Tipo);
+        var dataInicio = DataInicio.GetValueOrDefault();
+        var dataFim = DataFim.GetValueOrDefault();
+
+        return new FilterBuilder<Recomendacao>()
+            .AddIf(PetId.HasValue, recomendacao => recomendacao.PetId == petId)
+            .AddIf(tipo is not null, recomendacao => recomendacao.Tipo.ToUpper().Contains(tipo!))
+            .AddIf(DataInicio.HasValue, recomendacao => recomendacao.DataRecomendacao >= dataInicio)
+            .AddIf(DataFim.HasValue, recomendacao => recomendacao.DataRecomendacao <= dataFim)
+            .Build();
+    }
+}

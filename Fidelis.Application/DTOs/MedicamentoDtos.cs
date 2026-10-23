@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -42,3 +44,20 @@ public class MedicamentoResponse
     }
 }
 
+public class MedicamentoQueryParameters : QueryParameters
+{
+    public int? PrescricaoId { get; set; }
+
+    public string? Nome { get; set; }
+
+    public IReadOnlyList<Expression<Func<Medicamento, bool>>> ToFilters()
+    {
+        var prescricaoId = PrescricaoId.GetValueOrDefault();
+        var nome = TextFilter.Normalize(Nome);
+
+        return new FilterBuilder<Medicamento>()
+            .AddIf(PrescricaoId.HasValue, medicamento => medicamento.PrescricaoId == prescricaoId)
+            .AddIf(nome is not null, medicamento => medicamento.Nome.ToUpper().Contains(nome!))
+            .Build();
+    }
+}

@@ -5,11 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Fidelis.Api.Extensions;
 
-/// <summary>
-/// Configura autenticação JWT Bearer (validação de token) e autorização.
-/// Os controllers exigem [Authorize] por padrão (ver AddControllers em
-/// Program.cs); use [AllowAnonymous] nos endpoints públicos (login, cadastro).
-/// </summary>
 public static class AuthenticationExtensions
 {
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)

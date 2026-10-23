@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Diagnostics;
 using Fidelis.Application.Interfaces.Repositories;
@@ -25,15 +26,17 @@ public class ConsultaService : IConsultaService
         _logger = logger;
     }
 
-    public List<ConsultaResponse> GetAll()
+    public PagedResult<ConsultaResponse> GetAll(ConsultaQueryParameters query)
     {
         using var activity = ActivitySource.StartActivity("Consulta.GetAll");
+        activity?.SetTag("query.page", query.Page);
+        activity?.SetTag("query.pageSize", query.PageSize);
 
-        var consultas = _repository.GetAll();
+        var result = _repository.GetPaged(query, query.ToFilters());
 
-        _logger.LogInformation("Consulta de consultas retornou {ConsultaCount} registros", consultas.Count);
+        _logger.LogInformation("Consulta de consultas retornou {ConsultaCount} registros de {TotalItems}", result.Items.Count, result.TotalItems);
 
-        return consultas.Select(consulta => new ConsultaResponse(consulta)).ToList();
+        return result.Map(consulta => new ConsultaResponse(consulta));
     }
 
     public ConsultaResponse? GetById(int id)

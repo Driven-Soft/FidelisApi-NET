@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -38,3 +40,28 @@ public class ComportamentoResponse
     }
 }
 
+public class ComportamentoQueryParameters : QueryParameters
+{
+    public int? PetId { get; set; }
+
+    public string? Descricao { get; set; }
+
+    public DateTime? DataInicio { get; set; }
+
+    public DateTime? DataFim { get; set; }
+
+    public IReadOnlyList<Expression<Func<Comportamento, bool>>> ToFilters()
+    {
+        var petId = PetId.GetValueOrDefault();
+        var descricao = TextFilter.Normalize(Descricao);
+        var dataInicio = DataInicio.GetValueOrDefault();
+        var dataFim = DataFim.GetValueOrDefault();
+
+        return new FilterBuilder<Comportamento>()
+            .AddIf(PetId.HasValue, comportamento => comportamento.PetId == petId)
+            .AddIf(descricao is not null, comportamento => comportamento.Descricao.ToUpper().Contains(descricao!))
+            .AddIf(DataInicio.HasValue, comportamento => comportamento.Data >= dataInicio)
+            .AddIf(DataFim.HasValue, comportamento => comportamento.Data <= dataFim)
+            .Build();
+    }
+}

@@ -1,10 +1,11 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 
 namespace Fidelis.Application.Services.Interfaces;
 
 public interface ILembreteService
 {
-    List<LembreteResponse> GetAll();
+    PagedResult<LembreteResponse> GetAll(LembreteQueryParameters query);
     LembreteResponse? GetById(int id);
     LembreteResponse Create(LembreteRequest request);
     LembreteResponse? Update(int id, LembreteRequest request);

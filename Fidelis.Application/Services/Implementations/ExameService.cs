@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class ExameService : IExameService
         _repository = repository;
     }
 
-    public List<ExameResponse> GetAll()
+    public PagedResult<ExameResponse> GetAll(ExameQueryParameters query)
     {
-        var exames = _repository.GetAll();
-        return exames.Select(exame => new ExameResponse(exame)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(exame => new ExameResponse(exame));
     }
 
     public ExameResponse? GetById(int id)

@@ -8,6 +8,7 @@ namespace Fidelis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Produces("application/json")]
 [SwaggerTag("Autenticação de tutores via JWT.")]
 public class AuthController : ControllerBase
 {
@@ -18,13 +19,12 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    /// <summary>
-    /// Autentica um tutor (email/senha já cadastrados via POST /api/Tutor)
-    /// e retorna um token JWT para uso nos demais endpoints.
-    /// </summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [SwaggerOperation(
+        Summary = "Autentica um tutor e retorna o token JWT",
+        Description = "Use o email e a senha cadastrados em POST /api/Tutor. Envie o token retornado no header Authorization: Bearer {token}.")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public IActionResult Login([FromBody] LoginRequest request)
     {

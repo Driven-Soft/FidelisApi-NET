@@ -1,16 +1,40 @@
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Fidelis.Infrastructure.Repositories;
 
-public class Repository<T>(FidelisContext context) : IRepository<T> where T : class
+public class Repository<T> : IRepository<T> where T : class
 {
-    private DbSet<T> Set => context.Set<T>();
+    protected FidelisContext Context { get; }
+
+    protected DbSet<T> Set => Context.Set<T>();
+
+    public Repository(FidelisContext context)
+    {
+        Context = context;
+    }
 
     public IReadOnlyCollection<T> GetAll()
     {
         return Set.AsNoTracking().ToList();
+    }
+
+    public PagedResult<T> GetPaged(QueryParameters parameters, IEnumerable<Expression<Func<T, bool>>> filters)
+    {
+        var query = filters.Aggregate(Set.AsNoTracking(), (current, filter) => current.Where(filter));
+
+        var totalItems = query.Count();
+
+        var items = QuerySorter
+            .Apply(query, parameters.SortBy, parameters.IsDescending())
+            .Skip(parameters.Skip())
+            .Take(parameters.PageSize)
+            .ToList();
+
+        return new PagedResult<T>(items, parameters.Page, parameters.PageSize, totalItems);
     }
 
     public T? GetById(int id)
@@ -35,6 +59,6 @@ public class Repository<T>(FidelisContext context) : IRepository<T> where T : cl
 
     public void SaveChanges()
     {
-        context.SaveChanges();
+        Context.SaveChanges();
     }
 }

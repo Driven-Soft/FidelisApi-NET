@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -56,3 +58,36 @@ public class LembreteResponse
     }
 }
 
+public class LembreteQueryParameters : QueryParameters
+{
+    public int? PetId { get; set; }
+
+    public int? TutorId { get; set; }
+
+    public char? Status { get; set; }
+
+    public string? Tipo { get; set; }
+
+    public DateTime? DataInicio { get; set; }
+
+    public DateTime? DataFim { get; set; }
+
+    public IReadOnlyList<Expression<Func<Lembrete, bool>>> ToFilters()
+    {
+        var petId = PetId.GetValueOrDefault();
+        var tutorId = TutorId.GetValueOrDefault();
+        var status = char.ToUpperInvariant(Status.GetValueOrDefault());
+        var tipo = TextFilter.Normalize(Tipo);
+        var dataInicio = DataInicio.GetValueOrDefault();
+        var dataFim = DataFim.GetValueOrDefault();
+
+        return new FilterBuilder<Lembrete>()
+            .AddIf(PetId.HasValue, lembrete => lembrete.PetId == petId)
+            .AddIf(TutorId.HasValue, lembrete => lembrete.TutorId == tutorId)
+            .AddIf(Status.HasValue, lembrete => lembrete.Status == status)
+            .AddIf(tipo is not null, lembrete => lembrete.Tipo.ToUpper().Contains(tipo!))
+            .AddIf(DataInicio.HasValue, lembrete => lembrete.DataPrevista >= dataInicio)
+            .AddIf(DataFim.HasValue, lembrete => lembrete.DataPrevista <= dataFim)
+            .Build();
+    }
+}

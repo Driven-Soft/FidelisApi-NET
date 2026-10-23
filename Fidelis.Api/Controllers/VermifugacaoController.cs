@@ -1,3 +1,4 @@
+using Fidelis.Api.Hateoas;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,10 @@ namespace Fidelis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 [SwaggerTag("Controle de vermifugações dos pets.")]
-public class VermifugacaoController : ControllerBase
+public class VermifugacaoController : HateoasController
 {
     private readonly IVermifugacaoService _service;
 
@@ -18,76 +20,66 @@ public class VermifugacaoController : ControllerBase
         _service = service;
     }
 
-    /// <summary>
-    /// Lista vermifugacoes cadastradas.
-    /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetAll()
+    [SwaggerOperation(
+        Summary = "Lista vermifugações com paginação, ordenação e filtros",
+        Description = "Parâmetros: page, pageSize (máx. 100), sortBy (qualquer campo do recurso), sortDirection (asc|desc) e filtros: petId, veterinarioId, produto, proximaAte.")]
+    [ProducesResponseType(typeof(PagedResponse<VermifugacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult GetAll([FromQuery] VermifugacaoQueryParameters query)
     {
-        var vermifugacoes = _service.GetAll();
-        return Ok(vermifugacoes);
+        var result = _service.GetAll(query);
+        return Ok(ToPagedResponse(result, vermifugacao => vermifugacao.Id));
     }
 
-    /// <summary>
-    /// Busca uma vermifugacao por id.
-    /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Busca uma vermifugação por id")]
+    [ProducesResponseType(typeof(ResourceResponse<VermifugacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetById(int id)
     {
         var vermifugacao = _service.GetById(id);
-        return vermifugacao is null ? NotFound() : Ok(vermifugacao);
+        return vermifugacao is null ? NotFound() : Ok(ToResource(vermifugacao, vermifugacao.Id));
     }
 
-    /// <summary>
-    /// Cria uma nova vermifugacao.
-    /// </summary>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerOperation(Summary = "Cadastra uma nova vermifugação")]
+    [ProducesResponseType(typeof(ResourceResponse<VermifugacaoResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] VermifugacaoRequest request)
     {
         var created = _service.Create(request);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedResource(created, created.Id);
     }
 
-    /// <summary>
-    /// Atualiza uma vermifugacao existente.
-    /// </summary>
     [HttpPut("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza todos os dados de uma vermifugação")]
+    [ProducesResponseType(typeof(ResourceResponse<VermifugacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Update(int id, [FromBody] VermifugacaoRequest request)
     {
         var updated = _service.Update(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Atualiza parcialmente uma vermifugacao.
-    /// </summary>
     [HttpPatch("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerOperation(Summary = "Atualiza parcialmente uma vermifugação")]
+    [ProducesResponseType(typeof(ResourceResponse<VermifugacaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Patch(int id, [FromBody] VermifugacaoPatchRequest request)
     {
         var updated = _service.Patch(id, request);
-        return updated is null ? NotFound() : Ok(updated);
+        return updated is null ? NotFound() : Ok(ToResource(updated, updated.Id));
     }
 
-    /// <summary>
-    /// Remove uma vermifugacao por id.
-    /// </summary>
     [HttpDelete("{id:int}")]
+    [SwaggerOperation(Summary = "Remove uma vermifugação")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult Delete(int id)
     {
-        var deleted = _service.Delete(id);
-        return deleted ? NoContent() : NotFound();
+        return _service.Delete(id) ? NoContent() : NotFound();
     }
 }

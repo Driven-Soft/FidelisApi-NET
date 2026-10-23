@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Diagnostics;
 using Fidelis.Application.Interfaces.Repositories;
@@ -13,10 +14,8 @@ public class PetService : IPetService
     private readonly IPetRepository _repository;
     private readonly ILogger<PetService> _logger;
 
-    // Tracing: ActivitySource é a classe nativa do .NET para criar Spans/Activities.
     private static readonly ActivitySource ActivitySource = new(TelemetryConstants.ServiceName);
 
-    // Métricas: Counter nativo do .NET, exportado via OpenTelemetry.
     private static readonly Meter Meter = new(TelemetryConstants.MeterName);
     private static readonly Counter<int> PetsCreatedCounter =
         Meter.CreateCounter<int>("pets_created_total", description: "Total de pets cadastrados.");
@@ -27,15 +26,17 @@ public class PetService : IPetService
         _logger = logger;
     }
 
-    public List<PetResponse> GetAll()
+    public PagedResult<PetResponse> GetAll(PetQueryParameters query)
     {
         using var activity = ActivitySource.StartActivity("Pet.GetAll");
+        activity?.SetTag("query.page", query.Page);
+        activity?.SetTag("query.pageSize", query.PageSize);
 
-        var pets = _repository.GetAll();
+        var result = _repository.GetPaged(query, query.ToFilters());
 
-        _logger.LogInformation("Consulta de pets retornou {PetCount} registros", pets.Count);
+        _logger.LogInformation("Consulta de pets retornou {PetCount} registros de {TotalItems}", result.Items.Count, result.TotalItems);
 
-        return pets.Select(pet => new PetResponse(pet)).ToList();
+        return result.Map(pet => new PetResponse(pet));
     }
 
     public PetResponse? GetById(int id)
@@ -64,7 +65,6 @@ public class PetService : IPetService
         _repository.Add(pet);
         _repository.SaveChanges();
 
-        // Log estruturado: {@Pet} serializa o objeto inteiro como propriedades pesquisáveis.
         _logger.LogInformation("Pet cadastrado com sucesso: {@Pet}", new
         {
             pet.Id,

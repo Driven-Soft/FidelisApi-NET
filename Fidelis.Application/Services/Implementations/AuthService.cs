@@ -5,6 +5,7 @@ using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
 using Fidelis.Application.Settings;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -14,25 +15,27 @@ public class AuthService : IAuthService
 {
     private readonly ITutorRepository _tutorRepository;
     private readonly JwtSettings _jwtSettings;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(ITutorRepository tutorRepository, IOptions<JwtSettings> jwtOptions)
+    public AuthService(ITutorRepository tutorRepository, IOptions<JwtSettings> jwtOptions, ILogger<AuthService> logger)
     {
         _tutorRepository = tutorRepository;
         _jwtSettings = jwtOptions.Value;
+        _logger = logger;
     }
 
     public LoginResponse? Login(LoginRequest request)
     {
-        var tutor = _tutorRepository.GetAll()
-            .Where(t => t.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(t => t.DataCriacao)
-            .FirstOrDefault();
-
-        // Observação: comparação em texto puro porque a senha do Tutor hoje é
-        // persistida sem hash. Recomendado migrar para BCrypt/PBKDF2 depois;
-        // isso ficou fora do escopo mínimo para fechar o requisito de auth.
-        if (tutor is null || tutor.Senha != request.Senha)
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Senha))
             return null;
+
+        var tutor = _tutorRepository.GetByEmail(request.Email);
+
+        if (tutor is null || tutor.Senha != request.Senha)
+        {
+            _logger.LogWarning("Falha de autenticação para o email {Email}", request.Email);
+            return null;
+        }
 
         var expiraEm = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiresInMinutes);
 
@@ -53,6 +56,8 @@ public class AuthService : IAuthService
             claims: claims,
             expires: expiraEm,
             signingCredentials: credentials);
+
+        _logger.LogInformation("Tutor {TutorId} autenticado com sucesso", tutor.Id);
 
         return new LoginResponse
         {

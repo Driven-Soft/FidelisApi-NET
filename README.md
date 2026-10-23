@@ -1,9 +1,8 @@
-# Fidelis
+# Fidelis API
+
 <hr/>
 
 ## Equipe Driven Soft
-
-### Integrantes
 
 | Nome | RM |
 | --- | --- |
@@ -12,388 +11,616 @@
 | Henrique Cunha Torres | RM 565119 |
 | Yasmin Nathalin Miranda dos Santos | RM 561365 |
 | Lucas da Silva Lima | RM 562118 |
-<hr/>
 
-### Repositório no Github:
+### Repositório no GitHub
+
 * https://github.com/Driven-Soft/FidelisApi-NET
 
 <hr/>
 
-API REST em .NET para gerenciamento de recursos do domínio Fidelis, organizada em camadas e separada em:
+## Sumário
 
-1. `Fidelis.Api` — camada HTTP, controllers, Swagger, observabilidade (logs, tracing, métricas, health checks) e tratamento global de erros
-2. `Fidelis.Application` — DTOs, contratos e serviços de aplicação
-3. `Fidelis.Domain` — entidades e regras de negócio
-4. `Fidelis.Infrastructure` — EF Core, persistência, repositórios e mapeamentos
-5. `Fidelis.UnitTests` — testes unitários (xUnit + Moq) de domínio e serviços
-6. `Fidelis.IntegrationTests` — testes de integração (xUnit + WebApplicationFactory) dos endpoints HTTP
+1. [Visão geral](#visão-geral)
+2. [Arquitetura](#arquitetura)
+3. [Tecnologias](#tecnologias)
+4. [Instalação e execução](#instalação-e-execução)
+5. [MongoDB: local ou MongoDB Atlas](#mongodb-local-ou-mongodb-atlas)
+6. [Autenticação](#autenticação)
+7. [Paginação, ordenação e filtros](#paginação-ordenação-e-filtros)
+8. [HATEOAS](#hateoas)
+9. [Endpoints](#endpoints)
+10. [Observabilidade e Health Checks](#observabilidade-e-health-checks)
+11. [Testes automatizados](#testes-automatizados)
+12. [Roteiro de teste manual no Swagger](#roteiro-de-teste-manual-no-swagger)
+13. [Estrutura do projeto](#estrutura-do-projeto)
 
 <hr/>
 
 ## Visão geral
 
-A solução expõe uma API REST com operações de CRUD completas para os principais recursos do sistema, usando Oracle como banco de dados e Entity Framework Core para acesso aos dados.
+O **Fidelis** é uma plataforma de saúde contínua para pets. A API centraliza a jornada clínica do animal e conecta tutores e veterinários em torno de um histórico estruturado: consultas, vacinas, vermifugações, exames, prescrições, peso, comportamento, lembretes e recomendações.
 
-### Recursos disponíveis
+A solução usa **persistência poliglota**:
 
-1. `Clinica`
-2. `Comportamento`
-3. `Consulta`
-4. `Exame`
-5. `HistoricoPeso`
-6. `Lembrete`
-7. `Medicamento`
-8. `Pet`
-9. `Prescricao`
-10. `Recomendacao`
-11. `Tutor`
-12. `Vacinacao`
-13. `Vermifugacao`
-14. `Veterinario`
+| Banco | Tipo | O que armazena | Por quê |
+| --- | --- | --- | --- |
+| **Oracle** (EF Core + Migrations) | Relacional | Tutores, pets, clínicas, veterinários, consultas, vacinas, exames, prescrições, etc. | Dados com relacionamentos fortes e integridade referencial |
+| **MongoDB** (MongoDB.Driver) | NoSQL (documentos) | **Diário do pet** (`RegistroDiario`) e **trilha de auditoria** (`LogAuditoria`) | Dados semiestruturados (tags livres, textos), alto volume de escrita e consultas flexíveis |
 
-## Requisitos
+Principais recursos:
 
-1. .NET SDK compatível com `net10.0`
-2. Oracle Database acessível
-3. Connection string configurada em `Fidelis.Api/appsettings.Development.json`
+* CRUD completo (GET, POST, PUT, PATCH, DELETE) para 15 recursos
+* Paginação, ordenação dinâmica e filtros em todas as listagens
+* HATEOAS em todas as respostas (links de navegação e de ações)
+* Autenticação JWT (todos os endpoints protegidos, exceto cadastro de tutor e login)
+* Auditoria automática de toda operação de escrita, gravada no MongoDB de forma assíncrona
+* Tratamento global de exceções com `ProblemDetails` (RFC 7807)
+* Logging estruturado (Serilog), tracing e métricas (OpenTelemetry), health checks de Oracle e MongoDB
+* 161 casos de teste unitários e 44 de integração (xUnit, padrão AAA)
 
-## Configuração do banco
+<hr/>
 
-A API lê a connection string da seção `ConnectionStrings`.
+## Arquitetura
 
-Coloque suas credenciais de banco e detalhes de conexão no arquivo `appsettings.Development.json` seguindo o formato abaixo:
+A solução segue **Clean Architecture**: as dependências apontam sempre para dentro, em direção ao domínio. A camada `Application` define os contratos (interfaces de repositório e serviços) e a `Infrastructure` os implementa, então a regra de negócio não conhece Oracle, MongoDB nem HTTP.
+
+### Diagrama de camadas
+
+```mermaid
+flowchart TB
+    subgraph Cliente
+        SW[Swagger UI / Postman / Front-end]
+    end
+
+    subgraph API["Fidelis.Api (Apresentação)"]
+        MW[Middlewares<br/>Serilog • Auditoria • ExceptionHandler • JWT]
+        CT[Controllers REST<br/>+ HateoasController]
+        HC[Health Checks<br/>/health/live • /health/ready]
+    end
+
+    subgraph APP["Fidelis.Application (Casos de uso)"]
+        SV[Services]
+        DTO[DTOs + QueryParameters<br/>PagedResult • FilterBuilder]
+        IR[Interfaces de Repositório]
+    end
+
+    subgraph DOM["Fidelis.Domain (Núcleo)"]
+        EN[Entidades + Regras de negócio]
+    end
+
+    subgraph INF["Fidelis.Infrastructure (Detalhes técnicos)"]
+        EF[EF Core<br/>FidelisContext • Repository&lt;T&gt; • QuerySorter]
+        MG[MongoDB<br/>MongoDbContext • Repositórios NoSQL]
+    end
+
+    ORA[(Oracle)]
+    MDB[(MongoDB / Atlas)]
+
+    SW -->|HTTP + JWT| MW --> CT --> SV
+    SV --> IR
+    SV --> EN
+    DTO --> EN
+    EF -. implementa .-> IR
+    MG -. implementa .-> IR
+    EF --> ORA
+    MG --> MDB
+    HC --> ORA
+    HC --> MDB
+```
+
+### Fluxo de uma requisição de escrita
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant A as AuditoriaMiddleware
+    participant J as JWT
+    participant Ctrl as Controller
+    participant S as Service
+    participant R as Repository
+    participant DB as Oracle / MongoDB
+    participant Q as Fila de Auditoria
+    participant BG as AuditoriaBackgroundService
+    participant M as MongoDB
+
+    C->>A: POST /api/Pet
+    A->>J: valida token
+    J->>Ctrl: usuário autenticado
+    Ctrl->>S: Create(request)
+    S->>R: Add + SaveChanges
+    R->>DB: INSERT
+    S-->>Ctrl: PetResponse
+    Ctrl-->>A: 201 + dados + links HATEOAS
+    A->>Q: Enqueue(LogAuditoria)
+    A-->>C: 201 Created
+    BG->>Q: lê fila
+    BG->>M: insere em logs_auditoria
+```
+
+### Responsabilidade de cada camada
+
+| Projeto | Responsabilidade | Depende de |
+| --- | --- | --- |
+| `Fidelis.Domain` | Entidades e regras de negócio (validações no construtor e nos métodos `Update*`) | nada |
+| `Fidelis.Application` | Services, DTOs, filtros por recurso, paginação e interfaces de repositório | Domain |
+| `Fidelis.Infrastructure` | EF Core/Oracle (migrations, mapeamentos, repositórios) e MongoDB (mapeamento BSON, repositórios, índices) | Application, Domain |
+| `Fidelis.Api` | Controllers, HATEOAS, middlewares, JWT, Swagger, health checks, observabilidade, injeção de dependência | Application, Infrastructure |
+| `Fidelis.UnitTests` | Testes de domínio, services, paginação, filtros e ordenação (xUnit + Moq) | Application, Domain, Infrastructure |
+| `Fidelis.IntegrationTests` | Testes HTTP ponta a ponta com `WebApplicationFactory`, EF InMemory e repositórios Mongo em memória | Api |
+
+### Princípios aplicados
+
+* **SRP**: controllers só orquestram HTTP, services contêm o caso de uso, entidades contêm as regras, repositórios só acessam dados
+* **OCP**: novos filtros entram no `XQueryParameters.ToFilters()` sem alterar o repositório genérico. Novos recursos herdam `Repository<T>` e `HateoasController`
+* **LSP/ISP**: interfaces de repositório específicas por agregado (`ITutorRepository` adiciona `GetByEmail` e `ExistsByEmail`)
+* **DIP**: services dependem de interfaces da `Application`, e as implementações são injetadas via DI (`ServiceExtensions`, `PersistenceExtensions`, `MongoExtensions`)
+* **Clean Code**: nomes expressivos, métodos curtos, sem duplicação de lógica de paginação e links, tratamento de erros centralizado no `GlobalExceptionHandler`
+
+<hr/>
+
+## Tecnologias
+
+| Categoria | Tecnologia |
+| --- | --- |
+| Runtime | .NET 10 / ASP.NET Core |
+| Relacional | Oracle + Entity Framework Core 9 + Migrations |
+| NoSQL | MongoDB 7 / MongoDB Atlas + MongoDB.Driver 3 |
+| Documentação | Swagger / OpenAPI (Swashbuckle + Annotations) |
+| Segurança | JWT Bearer |
+| Logs | Serilog (console estruturado + request logging) |
+| Tracing e métricas | OpenTelemetry (ActivitySource, Meter, Console Exporter) |
+| Health checks | `Microsoft.Extensions.Diagnostics.HealthChecks` + EF Core check + check customizado do Mongo |
+| Testes | xUnit, Moq, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory |
+
+<hr/>
+
+## Instalação e execução
+
+### Pré-requisitos
+
+1. .NET SDK 10.0.x (`dotnet --version`)
+2. Ferramenta do EF Core: `dotnet tool install --global dotnet-ef`
+3. Acesso a um Oracle (ex.: `oracle.fiap.com.br`)
+4. Um MongoDB: local via Docker **ou** um cluster gratuito no MongoDB Atlas (veja a [próxima seção](#mongodb-local-ou-mongodb-atlas))
+
+### Passo a passo
+
+```powershell
+git clone https://github.com/Driven-Soft/FidelisApi-NET.git
+cd FidelisApi-NET
+dotnet restore
+```
+
+Configure `Fidelis.Api/appsettings.Development.json`:
 
 ```json
 {
   "ConnectionStrings": {
-	"FidelisOracle": "Data Source=SEU_HOST:PORTA/SERVICE_NAME;User ID=SEU_USUARIO;Password=SUA_SENHA;"
+    "FidelisOracle": "Data Source=oracle.fiap.com.br:1521/orcl;User ID=SEU_RM;Password=SUA_SENHA;"
+  },
+  "Jwt": {
+    "Key": "uma-chave-secreta-bem-longa-com-pelo-menos-32-caracteres",
+    "Issuer": "FidelisApi",
+    "Audience": "FidelisApiUsers",
+    "ExpiresInMinutes": 60
+  },
+  "MongoDb": {
+    "ConnectionString": "mongodb://localhost:27017",
+    "DatabaseName": "fidelis",
+    "ServerSelectionTimeoutSeconds": 5
   }
 }
 ```
 
-## Instalação
-
-1. Clone ou abra a solução localmente.
-2. Verifique se o .NET SDK está instalado na versão 10.0.X ou superior:
-
-```powershell
-dotnet --version
-```
-
-* Caso o .NET SDK esteja numa versão diferente da esperada, instale a versão correta do SDK a partir do site oficial: https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.300-windows-x64-installer
-
-* Execute o comando:
-```powershell
-dotnet --list-sdks
-```
-
-* Instale o dotnet ef global tool, caso ainda não tenha:
-
-```powershell
-dotnet tool install --global dotnet-ef
-```
-
-* Teste o funcionamento do dotnet ef:
-
-```powershell
-dotnet ef --version
-```
-
-3. Restaure os pacotes da solução:
-
-```powershell
-dotnet restore
-```
-
-4. Configure a string de conexão em `Fidelis.Api/appsettings.Development.json`.
-
-## Migrations e banco
-
-**Se for criar o banco do zero**, gere e aplique a migration inicial.
-Como no projeto as migrations já estão criadas, basta aplicar o segundo comando:
-
-```powershell
-dotnet ef migrations add Migration_004 -p .\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj -s .\Fidelis.Api\Fidelis.Api.csproj
-```
+Aplique as migrations no Oracle:
 
 ```powershell
 dotnet ef database update -p .\Fidelis.Infrastructure\Fidelis.Infrastructure.csproj -s .\Fidelis.Api\Fidelis.Api.csproj
 ```
 
-> Observação: se o banco já estiver criado, você pode aplicar apenas as migrations pendentes.
-
-## Execução da API
-
-Execute a aplicação:
+Execute:
 
 ```powershell
 dotnet run --project .\Fidelis.Api\Fidelis.Api.csproj
 ```
 
-Quando estiver em ambiente de desenvolvimento, o Swagger fica disponível em:
+Swagger: **http://localhost:5232/swagger**
 
-- `http://localhost:5232/swagger`
+> O MongoDB não precisa de migrations: o banco `fidelis`, as coleções `registros_diario` e `logs_auditoria` e seus índices são criados automaticamente na primeira execução.
 
-> A porta pode variar conforme o perfil de execução configurado no seu ambiente.
+<hr/>
 
-## 🚀 Início rápido — o que fazer ao abrir o Swagger
+## MongoDB: local ou MongoDB Atlas
 
-Com a API rodando, abra `http://localhost:5232/swagger` e siga esta ordem. **A API é protegida por JWT**, então quase tudo exige estar autenticado antes de testar.
+### Opção A: Docker (local)
 
-### Passo 1 — Cadastre um tutor (endpoint público, não precisa de token)
-
-Abra **`POST /api/Tutor`** → `Try it out` → cole:
-
-```json
-{
-  "cpf": "11122233344",
-  "nome": "Maria Teste",
-  "email": "maria.teste7@example.com",
-  "senha": "123456",
-  "telefone": "11988476632",
-  "endereco": "Rua das Flores, 100"
-}
+```powershell
+docker compose up -d
 ```
-`Execute`. Deve retornar **201 Created**.
 
-> ⚠️ Se aparecer `400` com "Já existe um tutor cadastrado com este email", é porque você já testou com esse e-mail antes — troque o e-mail ou pule direto para o Passo 2 usando o e-mail que já existe.
+O `docker-compose.yml` na raiz sobe um `mongo:7.0` em `localhost:27017`. A connection string padrão (`mongodb://localhost:27017`) já funciona.
 
-### Passo 2 — Faça login para obter o token
+### Opção B: MongoDB Atlas (cluster gratuito na nuvem)
 
-Abra **`POST /api/Auth/login`** → `Try it out` → cole:
+1. Acesse **https://www.mongodb.com/cloud/atlas/register** e crie uma conta (pode usar o login Google).
+2. Em **Create a cluster**, escolha o plano **M0 (Free)**, provedor AWS e a região **São Paulo (sa-east-1)**. Dê o nome `fidelis-cluster` e clique em **Create Deployment**.
+3. Na tela **Connect to fidelis-cluster**:
+   * **Create a database user**: usuário `fidelis_app` e uma senha (anote, e evite caracteres como `@`, `:` e `/`).
+   * Clique em **Create Database User**.
+4. No menu lateral, abra **Security → Network Access → Add IP Address**:
+   * Para desenvolvimento, clique em **Allow access from anywhere** (`0.0.0.0/0`) ou **Add current IP address**.
+   * Confirme e aguarde o status **Active**.
+5. Volte em **Database → Clusters → Connect → Drivers**, selecione **C# / .NET** e copie a connection string. Ela tem o formato:
 
-```json
-{
-  "email": "maria.teste7@example.com",
-  "senha": "123456"
-}
-```
-`Execute`. Deve retornar **200 OK** com um corpo assim:
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "expiraEm": "...",
-  "tutorId": 1,
-  "nome": "Maria Teste"
-}
-```
-**Copie o valor de `token`** (sem as aspas).
+   ```
+   mongodb+srv://fidelis_app:<db_password>@fidelis-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority&appName=fidelis-cluster
+   ```
 
-### Passo 3 — Autorize no Swagger
+6. Substitua `<db_password>` pela senha do passo 3 e cole no `appsettings.Development.json`:
 
-Clique no botão **🔒 Authorize** no canto superior direito da página. Cole o token copiado no campo (não escreva `Bearer`, o Swagger já adiciona isso sozinho). Clique em **Authorize** e depois em **Close**.
+   ```json
+   "MongoDb": {
+     "ConnectionString": "mongodb+srv://fidelis_app:SUA_SENHA@fidelis-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority&appName=fidelis-cluster",
+     "DatabaseName": "fidelis",
+     "ServerSelectionTimeoutSeconds": 10
+   }
+   ```
 
-### Passo 4 — Agora todos os endpoints estão liberados
+   Se preferir não salvar a senha no arquivo, use variável de ambiente:
 
-Com o cadeado fechado, teste qualquer endpoint normalmente, por exemplo **`GET /api/Pet`** → `Try it out` → `Execute`. Deve retornar **200 OK**.
+   ```powershell
+   $env:MongoDb__ConnectionString = "mongodb+srv://fidelis_app:SUA_SENHA@fidelis-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority"
+   ```
 
-Se você tentar chamar um endpoint protegido **sem** ter feito o Passo 3, vai receber **401 Unauthorized** — isso é esperado, não é bug.
+7. Rode a API e acesse **http://localhost:5232/health/ready**. O resultado esperado é `"mongodb": { "status": "Healthy" }`.
+8. Para ver os dados: no Atlas, abra **Database → Browse Collections → fidelis**. As coleções `registros_diario` e `logs_auditoria` aparecem após o primeiro `POST`.
 
-### Ordem sugerida para criar dados de teste
+> Se o `/health/ready` mostrar o Mongo como `Unhealthy`, quase sempre é o IP fora do **Network Access** ou a senha errada na connection string.
 
-Como as entidades têm dependências entre si (ex: um Pet precisa de um Tutor, uma Consulta precisa de um Pet e um Veterinário), siga esta ordem ao criar registros:
-
-`Tutor → Clinica → Veterinario → Pet → Consulta → (Exame | Prescricao → Medicamento) | (Vacinacao | Vermifugacao | HistoricoPeso | Comportamento | Recomendacao | Lembrete)`
-
-Sempre anote o `id` retornado por cada `POST` — ele será usado como chave estrangeira (`tutorId`, `petId`, `veterinarioId`, etc.) nos próximos cadastros.
+<hr/>
 
 ## Autenticação
 
-A API usa **JWT Bearer** para proteger seus endpoints. O fluxo é:
+1. `POST /api/Tutor`: cadastro (público)
+2. `POST /api/Auth/login`: retorna `{ token, expiraEm, tutorId, nome }`
+3. Envie `Authorization: Bearer {token}` nas demais requisições. No Swagger, clique em **Authorize** e cole só o token.
 
-1. Cadastre um tutor (endpoint público): `POST /api/Tutor`
-2. Faça login com o email/senha cadastrados: `POST /api/Auth/login`
-3. Use o `token` retornado no header `Authorization: Bearer {token}` nas demais requisições
+Sem token, qualquer endpoint protegido responde **401 Unauthorized**.
 
-Endpoints públicos (não exigem token): `POST /api/Tutor` (cadastro) e `POST /api/Auth/login`.
-Todos os outros endpoints (`Pet`, `Consulta`, `Vacinacao`, etc.) exigem o header `Authorization`.
+<hr/>
 
-Configure a chave de assinatura do token na seção `Jwt` do `appsettings.Development.json`:
+## Paginação, ordenação e filtros
+
+Todas as rotas `GET /api/{recurso}` aceitam:
+
+| Parâmetro | Padrão | Regra |
+| --- | --- | --- |
+| `page` | `1` | ≥ 1 |
+| `pageSize` | `10` | 1 a 100 |
+| `sortBy` | `id` (no Mongo: data mais recente) | Qualquer propriedade simples do recurso (`nome`, `dataHora`, `pesoKg`...). Campo inexistente retorna **400** |
+| `sortDirection` | `asc` | `asc` ou `desc` |
+
+Filtros específicos (texto é parcial e não diferencia maiúsculas de minúsculas):
+
+| Recurso | Filtros |
+| --- | --- |
+| `Clinica` | `nome`, `cnpj`, `email` |
+| `Comportamento` | `petId`, `descricao`, `dataInicio`, `dataFim` |
+| `Consulta` | `petId`, `veterinarioId`, `tipo`, `dataInicio`, `dataFim` |
+| `Exame` | `consultaId`, `tipo`, `dataInicio`, `dataFim` |
+| `HistoricoPeso` | `petId`, `pesoMinimo`, `pesoMaximo`, `dataInicio`, `dataFim` |
+| `Lembrete` | `petId`, `tutorId`, `status` (P/C/X), `tipo`, `dataInicio`, `dataFim` |
+| `Medicamento` | `prescricaoId`, `nome` |
+| `Pet` | `nome`, `especie`, `raca`, `sexo`, `status`, `tutorId`, `clinicaId` |
+| `Prescricao` | `consultaId`, `dosagem`, `duracaoMinimaDias`, `duracaoMaximaDias` |
+| `Recomendacao` | `petId`, `tipo`, `dataInicio`, `dataFim` |
+| `Tutor` | `nome`, `email`, `cpf` |
+| `Vacinacao` | `petId`, `veterinarioId`, `vacina`, `proximaAte` |
+| `Vermifugacao` | `petId`, `veterinarioId`, `produto`, `proximaAte` |
+| `Veterinario` | `nome`, `crmv`, `especialidade`, `clinicaId` |
+| `RegistroDiario` (Mongo) | `petId`, `humor`, `tag`, `texto` (título ou descrição), `dataInicio`, `dataFim` |
+| `Auditoria` (Mongo) | `metodo`, `caminho`, `statusCode`, `usuarioId`, `dataInicio`, `dataFim` |
+
+Exemplos:
+
+```
+GET /api/Pet?especie=cachorro&sortBy=nome&sortDirection=desc&page=1&pageSize=5
+GET /api/Vacinacao?petId=3&proximaAte=2026-12-31
+GET /api/RegistroDiario?petId=1&tag=passeio&humor=feliz
+GET /api/Auditoria?metodo=DELETE&statusCode=404
+```
+
+Como funciona por dentro:
+
+* `QueryParameters` (Application) valida `page`, `pageSize` e `sortDirection` com DataAnnotations. Valores inválidos retornam 400 automaticamente.
+* Cada `XQueryParameters.ToFilters()` gera expressões LINQ via `FilterBuilder<T>`, traduzidas pelo EF Core em SQL (`WHERE`, `UPPER(...) LIKE`, `OFFSET/FETCH`).
+* `Repository<T>.GetPaged` aplica filtros, conta o total, ordena com `QuerySorter` (expression tree que só aceita propriedades escalares) e pagina no banco.
+* No MongoDB, os repositórios montam `FilterDefinition` e `SortDefinition` nativos, com `CountDocuments`, `Skip` e `Limit`.
+
+<hr/>
+
+## HATEOAS
+
+Todo recurso individual é devolvido como `{ data, links }`:
 
 ```json
 {
-  "Jwt": {
-    "Key": "uma-chave-secreta-bem-longa-e-aleatoria-32-chars-ou-mais",
-    "Issuer": "FidelisApi",
-    "Audience": "FidelisApiUsers",
-    "ExpiresInMinutes": 60
-  }
+  "data": {
+    "id": 7,
+    "nome": "Rex",
+    "especie": "Cachorro",
+    "raca": "Labrador",
+    "sexo": "M",
+    "status": "A",
+    "tutorId": 1,
+    "clinicaId": null
+  },
+  "links": [
+    { "href": "http://localhost:5232/api/Pet/7", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5232/api/Pet/7", "rel": "update", "method": "PUT" },
+    { "href": "http://localhost:5232/api/Pet/7", "rel": "partial-update", "method": "PATCH" },
+    { "href": "http://localhost:5232/api/Pet/7", "rel": "delete", "method": "DELETE" },
+    { "href": "http://localhost:5232/api/Pet", "rel": "collection", "method": "GET" }
+  ]
 }
 ```
 
-Exemplo de login via PowerShell:
+Listagens retornam metadados de paginação e links de navegação, preservando os filtros da URL:
 
-```powershell
-$body = @{ email = "user@example.com"; senha = "123456" } | ConvertTo-Json
-$login = Invoke-RestMethod -Method Post -Uri "http://localhost:5232/api/Auth/login" -ContentType "application/json" -Body $body
-
-Invoke-RestMethod -Method Get -Uri "http://localhost:5232/api/Pet" -Headers @{ Authorization = "Bearer $($login.token)" }
+```json
+{
+  "items": [ { "data": { "id": 7, "nome": "Rex" }, "links": [ "..." ] } ],
+  "page": 2,
+  "pageSize": 5,
+  "totalItems": 23,
+  "totalPages": 5,
+  "links": [
+    { "href": "http://localhost:5232/api/Pet?especie=cachorro&page=2&pageSize=5", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5232/api/Pet?especie=cachorro&page=1&pageSize=5", "rel": "first", "method": "GET" },
+    { "href": "http://localhost:5232/api/Pet?especie=cachorro&page=1&pageSize=5", "rel": "previous", "method": "GET" },
+    { "href": "http://localhost:5232/api/Pet?especie=cachorro&page=3&pageSize=5", "rel": "next", "method": "GET" },
+    { "href": "http://localhost:5232/api/Pet?especie=cachorro&page=5&pageSize=5", "rel": "last", "method": "GET" },
+    { "href": "http://localhost:5232/api/Pet", "rel": "create", "method": "POST" }
+  ]
+}
 ```
 
-No Swagger (`/swagger`), clique em **Authorize** e cole apenas o token (sem o prefixo `Bearer`).
+A geração dos links está centralizada em `Fidelis.Api/Hateoas/HateoasController.cs`, herdado por todos os controllers. Os links são criados com `Url.Action`, então acompanham automaticamente as rotas reais. Recursos somente leitura, como a `Auditoria`, recebem apenas os links das ações que existem.
 
-> ⚠️ A senha do `Tutor` hoje é validada em texto puro (não há hash). Para produção, recomenda-se migrar para BCrypt/PBKDF2.
+<hr/>
 
-## Rotas da API
+## Endpoints
 
-Todos os controllers seguem o padrão REST abaixo, usando a rota base `api/[controller]`:
+Rota base: `api/[controller]`. Todos exigem JWT, exceto os marcados como **público**.
+
+### Recursos relacionais (Oracle)
+
+Cada recurso abaixo expõe o mesmo conjunto de operações:
+
+| Método | Rota | Descrição | Respostas |
+| --- | --- | --- | --- |
+| `GET` | `/api/{recurso}` | Lista paginada com filtros e ordenação | 200, 400, 401 |
+| `GET` | `/api/{recurso}/{id:int}` | Busca por id | 200, 401, 404 |
+| `POST` | `/api/{recurso}` | Cria | 201 (com header `Location`), 400, 401 |
+| `PUT` | `/api/{recurso}/{id:int}` | Atualização completa | 200, 400, 401, 404 |
+| `PATCH` | `/api/{recurso}/{id:int}` | Atualização parcial (só os campos enviados) | 200, 400, 401, 404 |
+| `DELETE` | `/api/{recurso}/{id:int}` | Remove | 204, 401, 404 |
+
+Recursos: `Clinica`, `Comportamento`, `Consulta`, `Exame`, `HistoricoPeso`, `Lembrete`, `Medicamento`, `Pet`, `Prescricao`, `Recomendacao`, `Tutor` (`POST` público), `Vacinacao`, `Vermifugacao`, `Veterinario`.
+
+### Recursos NoSQL (MongoDB)
 
 | Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/{recurso}` | Lista todos os registros |
-| `GET` | `/api/{recurso}/{id:int}` | Busca um registro por id |
-| `POST` | `/api/{recurso}` | Cria um novo registro |
-| `PUT` | `/api/{recurso}/{id:int}` | Atualiza um registro existente |
-| `PATCH` | `/api/{recurso}/{id:int}` | Atualiza parcialmente um registro |
-| `DELETE` | `/api/{recurso}/{id:int}` | Remove um registro |
+| --- | --- | --- |
+| `GET` | `/api/RegistroDiario` | Lista o diário com filtros (`petId`, `humor`, `tag`, `texto`, período) |
+| `GET` | `/api/RegistroDiario/{id}` | Busca por ObjectId (24 caracteres) |
+| `POST` | `/api/RegistroDiario` | Cria registro. O `petId` precisa existir no Oracle |
+| `PUT` | `/api/RegistroDiario/{id}` | Substitui o registro |
+| `PATCH` | `/api/RegistroDiario/{id}` | Atualiza campos específicos |
+| `DELETE` | `/api/RegistroDiario/{id}` | Remove |
+| `GET` | `/api/Auditoria` | Lista logs de auditoria (somente leitura) |
+| `GET` | `/api/Auditoria/{id}` | Busca log por ObjectId |
 
-### Controllers disponíveis
+Exemplo de `POST /api/RegistroDiario`:
 
-Cada recurso abaixo expõe o mesmo conjunto de operações CRUD:
-
-1. `api/Clinica`
-2. `api/Comportamento`
-3. `api/Consulta`
-4. `api/Exame`
-5. `api/HistoricoPeso`
-6. `api/Lembrete`
-7. `api/Medicamento`
-8. `api/Pet`
-9. `api/Prescricao`
-10. `api/Recomendacao`
-11. `api/Tutor`
-12. `api/Vacinacao`
-13. `api/Vermifugacao`
-14. `api/Veterinario`
-
-### Códigos HTTP utilizados
-
-1. `200 OK` — consulta, atualização com retorno
-2. `201 Created` — criação de recurso
-3. `204 NoContent` — remoção concluída com sucesso
-4. `400 BadRequest` — dados inválidos ou violação de regra de negócio esperada
-5. `404 NotFound` — recurso não encontrado
-6. `500 InternalServerError` — falhas inesperadas
-
-## Testando a API
-
-Você pode testar os endpoints de três formas:
-
-1. **Swagger** — acesse `/swagger`, selecione a rota e use `Try it out`
-2. **Postman** — crie requests para os endpoints desejados
-3. **curl / PowerShell** — envie requisições diretamente para a API
-
-Exemplo de chamada via PowerShell:
-
-```powershell
-$body = @{
-  cpf = "12312312312"
-  nome = "Felipe"
-  email = "user@example.com"
-  senha = "123456"
-  telefone = "11988476632"
-  endereco = "Rua Jose das Couves"
-} | ConvertTo-Json
-
-Invoke-RestMethod -Method Post -Uri "http://localhost:5232/api/Tutor" -ContentType "application/json" -Body $body
+```json
+{
+  "petId": 1,
+  "titulo": "Passeio no parque",
+  "descricao": "Correu bastante e brincou com outros cães.",
+  "humor": "Feliz",
+  "tags": ["passeio", "energia"],
+  "dataRegistro": "2026-10-20T10:00:00Z"
+}
 ```
 
-## Observabilidade
+Humores aceitos: `Feliz`, `Calmo`, `Agitado`, `Ansioso`, `Triste`, `Doente`. Tags são normalizadas (minúsculas, sem repetição, no máximo 10).
 
-A API expõe os três pilares de observabilidade — logs, tracing e métricas — usando Serilog e OpenTelemetry.
+Documento salvo no MongoDB (coleção `registros_diario`):
+
+```json
+{
+  "_id": { "$oid": "6715a1f0c2a4b1e9d0f3a7c2" },
+  "petId": 1,
+  "titulo": "Passeio no parque",
+  "descricao": "Correu bastante e brincou com outros cães.",
+  "humor": "Feliz",
+  "tags": ["passeio", "energia"],
+  "dataRegistro": { "$date": "2026-10-20T10:00:00Z" },
+  "criadoEm": { "$date": "2026-10-20T13:05:11Z" },
+  "atualizadoEm": null
+}
+```
+
+### Autenticação e infraestrutura
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `POST` | `/api/Auth/login` | Login (**público**) |
+| `GET` | `/health/live` | Liveness (**público**) |
+| `GET` | `/health/ready` | Readiness: Oracle + MongoDB (**público**) |
+| `GET` | `/health` | Relatório completo (**público**) |
+
+### Erros (ProblemDetails)
+
+```json
+{
+  "type": "https://httpstatuses.io/400",
+  "title": "Requisição inválida",
+  "status": 400,
+  "detail": "Sexo deve ser 'M' ou 'F'",
+  "instance": "/api/Pet",
+  "traceId": "0HN7..."
+}
+```
+
+| Exceção | Status |
+| --- | --- |
+| `ArgumentException` (regras de domínio, ordenação inválida) | 400 |
+| `InvalidOperationException` (ex.: email duplicado) | 400 |
+| `KeyNotFoundException` | 404 |
+| `UnauthorizedAccessException` | 401 |
+| `OracleException`, `MongoException`, `TimeoutException` | 503 |
+| Qualquer outra | 500 (detalhes só em Development) |
+
+A especificação OpenAPI completa fica disponível em `http://localhost:5232/swagger/v1/swagger.json` com a API rodando.
+
+<hr/>
+
+## Observabilidade e Health Checks
 
 ### Health Checks
 
-Usados para verificar se a aplicação está viva e se está pronta para receber tráfego (padrão de probes do Kubernetes).
-
 | Endpoint | Verifica | Uso |
-|---|---|---|
-| `GET /health/live` | Só se o processo está rodando (não depende de nada externo) | Liveness probe |
-| `GET /health/ready` | Conectividade com o banco Oracle (`AddDbContextCheck<FidelisContext>`) | Readiness probe |
-| `GET /health` | Relatório completo com todas as verificações | Diagnóstico manual / dashboards |
-
-Exemplo de resposta de `/health/ready`:
+| --- | --- | --- |
+| `GET /health/live` | Processo em execução | Liveness probe |
+| `GET /health/ready` | Oracle (`AddDbContextCheck`) e MongoDB (`ping`) | Readiness probe |
+| `GET /health` | Todas as verificações | Diagnóstico e dashboards |
 
 ```json
 {
   "status": "Healthy",
-  "results": {
-    "oracle-database": { "status": "Healthy" }
+  "totalDuration": "00:00:00.0451",
+  "entries": {
+    "oracle-database": { "status": "Healthy" },
+    "mongodb": { "status": "Healthy", "description": "MongoDB respondeu ao ping." }
   }
 }
 ```
 
-Se o banco estiver indisponível, o endpoint retorna `503 Service Unavailable` com `"status": "Unhealthy"`.
+Se algum banco cair, o endpoint retorna **503** com `"status": "Unhealthy"`.
 
-### Logging estruturado
+### Logging estruturado (Serilog)
 
-Configurado com Serilog em `Program.cs`, escrevendo no console em formato estruturado (chave/valor), com:
+* Logs no console no formato chave/valor, enriquecidos com `Application`, `TraceId` e `UserId`
+* `UseSerilogRequestLogging()` registra método, rota, status e tempo de cada requisição
+* Services usam templates estruturados (`_logger.LogInformation("Pet {PetId} atualizado", id)`), nunca interpolação
+* O `GlobalExceptionHandler` registra 4xx como `Warning` e 5xx como `Error` com stack trace
 
-- `UseSerilogRequestLogging()` — loga automaticamente cada requisição HTTP (rota, método, status code, tempo de resposta)
-- Enrichment via `Enrich.FromLogContext()`
-- Uso de templates estruturados no `ILogger<T>` (ex: `_logger.LogInformation("Pet {PetId} atualizado", id)`), nunca interpolação de string — assim os campos ficam pesquisáveis em ferramentas como Seq/Elasticsearch/Grafana Loki
+### Auditoria (MongoDB)
 
-### Tracing e Métricas (OpenTelemetry)
+Toda requisição `POST`, `PUT`, `PATCH` e `DELETE` em `/api` gera um documento em `logs_auditoria` com método, caminho, status, usuário (claim `sub`), email e duração. O middleware só enfileira o log (`Channel<T>`) e um `BackgroundService` grava no Mongo, então a requisição não espera o banco NoSQL e não falha se ele estiver indisponível.
 
-Configurado em `Fidelis.Api/Extensions/ObservabilityExtensions.cs`:
+### Tracing e métricas (OpenTelemetry)
 
-- **Tracing**: instrumentação automática de requisições HTTP de entrada/saída (`AddAspNetCoreInstrumentation`, `AddHttpClientInstrumentation`) + spans customizados criados manualmente nos serviços via `ActivitySource` (ex: `Pet.Create`, `Tutor.Update`)
-- **Métricas**: métricas padrão do ASP.NET Core + contadores customizados via `Meter`/`Counter<T>` (ex: `pets_created_total`, `tutores_created_total`, `consultas_created_total`)
-- Por padrão, ambos os sinais são exportados para o console (`AddConsoleExporter()`), o que é suficiente para desenvolvimento/estudo. Em produção, basta trocar o exporter por um OTLP apontando para um coletor (Grafana Tempo, Jaeger, Prometheus, etc.)
+* Tracing automático de requisições HTTP de entrada e saída, além de spans manuais nos services (`Pet.Create`, `Tutor.Update`, `RegistroDiario.Create`...)
+* Métricas ASP.NET Core e contadores customizados: `pets_created_total`, `tutores_created_total`, `consultas_created_total`, `registros_diario_created_total`
+* Exportação para o console. Em produção, basta trocar por OTLP (Grafana, Jaeger, Prometheus)
 
-O padrão de instrumentação foi aplicado em `PetService`, `TutorService` e `ConsultaService` como referência; o mesmo padrão (injeção de `ILogger<T>`, `ActivitySource` estático e `Counter<T>` estático) pode ser replicado para os demais serviços.
+<hr/>
 
 ## Testes automatizados
-
-O projeto possui dois níveis de teste, cada um em sua própria solução de testes.
-
-### Fidelis.UnitTests (xUnit + Moq)
-
-Testa unidades isoladas, sem tocar em banco de dados ou HTTP, seguindo o padrão **AAA (Arrange, Act, Assert)**:
-
-- `Domain/` — valida as regras de negócio das entidades (ex: `Pet` não aceita sexo diferente de `M`/`F`, `Tutor` exige senha com 6+ caracteres)
-- `Services/` — valida os serviços de aplicação (`PetService`, `TutorService`, `ConsultaService`), usando **Moq** para simular os repositórios (`IPetRepository`, `ITutorRepository`, `IConsultaRepository`) e assim testar a lógica de aplicação isoladamente
-
-Convenção de nomes: `MetodoTestado_Cenario_ResultadoEsperado`.
-
-### Fidelis.IntegrationTests (xUnit + WebApplicationFactory)
-
-Sobe a aplicação inteira em memória e testa o fluxo HTTP completo (roteamento, model binding, validação, serialização, tratamento global de erros):
-
-- `CustomWebApplicationFactory` — sobrescreve o `FidelisContext` (que normalmente aponta para o Oracle) por um banco **EF Core InMemory**, isolado por execução, então os testes rodam sem depender de um Oracle real
-- `IntegrationTestCollection` — **Collection Fixture** do xUnit que compartilha uma única instância da fábrica (e do host da aplicação) entre as classes de teste, evitando subir a aplicação inteira a cada classe
-- `Controllers/PetControllerTests.cs` e `Controllers/TutorControllerTests.cs` — cobrem criação (201), busca por id (200/404), atualização (200), remoção (204/404) e erros de validação (400)
-- `Controllers/HealthCheckTests.cs` — valida que `/health/live` e `/health/ready` respondem `200 OK`
-
-- `Controllers/AuthControllerTests.cs` — cobre o fluxo de autenticação: login com credenciais válidas (200 + token), login com senha/email inválidos (401), e acesso a endpoint protegido sem token (401) e com token válido (200)
-
-### Rodando os testes
 
 ```powershell
 dotnet test
 ```
 
-Para rodar só um dos projetos de teste:
+Ou separadamente:
 
 ```powershell
 dotnet test .\Fidelis.UnitTests\Fidelis.UnitTests.csproj
 dotnet test .\Fidelis.IntegrationTests\Fidelis.IntegrationTests.csproj
 ```
 
+Com cobertura:
+
+```powershell
+dotnet test --collect:"XPlat Code Coverage"
+```
+
+Todos os testes seguem o padrão **AAA (Arrange, Act, Assert)**, com os três blocos separados por linha em branco, e a convenção de nomes `Metodo_Cenario_ResultadoEsperado`.
+
+### Fidelis.UnitTests (xUnit + Moq): 161 casos
+
+| Pasta | O que cobre |
+| --- | --- |
+| `Domain/` | Regras de **todas as 16 entidades**: Tutor, Pet, Clinica, Veterinario, Consulta, Vacinacao, Vermifugacao, HistoricoPeso, Prescricao, Lembrete, Medicamento, Exame, Recomendacao, Comportamento, RegistroDiario e LogAuditoria |
+| `Application/` | `QueryParameters` (validação, skip, direção), `PagedResult` (total de páginas, navegação, map), `FilterBuilder`, `TextFilter` e os filtros de Pet, Consulta, Lembrete, Tutor, Vacinacao e HistoricoPeso aplicados sobre coleções reais |
+| `Services/` | Pet, Tutor, Consulta, Auth (geração e validação de JWT), Clinica, Veterinario, Vacinacao, Lembrete, Prescricao, HistoricoPeso, RegistroDiario (inclui validação do pet no Oracle) e Auditoria, com repositórios simulados via Moq |
+| `Infrastructure/` | `QuerySorter`: ordenação ascendente e descendente e rejeição de campos inválidos ou de navegação |
+
+### Fidelis.IntegrationTests (xUnit + WebApplicationFactory): 44 casos
+
+* `CustomWebApplicationFactory` troca o Oracle por **EF Core InMemory** e os repositórios do MongoDB por **implementações em memória**, então os testes rodam sem nenhum banco externo
+* `PetControllerTests` e `TutorControllerTests`: CRUD completo, 404, 400 e links HATEOAS
+* `PaginacaoTests`: metadados, links `first`/`previous`/`next`/`last`, ordenação desc, filtros e parâmetros inválidos (400)
+* `RegistroDiarioControllerTests`: CRUD NoSQL, validação de pet inexistente e humor inválido, filtro por pet e tag
+* `AuditoriaControllerTests`: confirma que escritas geram log com usuário e status
+* `AuthControllerTests`: login válido e inválido, acesso com e sem token
+* `HealthCheckTests`: `/health/live`, `/health/ready` e `/health`
+
+<hr/>
+
+## Roteiro de teste manual no Swagger
+
+Com a API rodando, abra `http://localhost:5232/swagger`:
+
+1. **`POST /api/Tutor`** (público):
+   ```json
+   { "cpf": "11122233344", "nome": "Maria Teste", "email": "maria.teste@example.com", "senha": "123456", "telefone": "11988476632", "endereco": "Rua das Flores, 100" }
+   ```
+2. **`POST /api/Auth/login`** com o mesmo email e senha. Copie o `token`.
+3. Clique em **Authorize**, cole o token e confirme.
+4. **`POST /api/Clinica`**, depois **`POST /api/Veterinario`** e **`POST /api/Pet`**. Anote os `id` retornados em `data.id` e observe os `links`.
+5. **`GET /api/Pet?page=1&pageSize=2&sortBy=nome`**: veja `totalItems`, `totalPages` e os links `next`/`last`.
+6. **`POST /api/RegistroDiario`** com o `petId` criado (exemplo na seção [Endpoints](#endpoints)).
+7. **`GET /api/RegistroDiario?petId={id}&tag=passeio`**: consulta no MongoDB.
+8. **`GET /api/Auditoria?metodo=POST`**: veja os logs das operações anteriores.
+9. **`GET /health/ready`**: confirme Oracle e MongoDB como `Healthy`.
+
+Ordem sugerida para criar dados:
+
+`Tutor → Clinica → Veterinario → Pet → Consulta → (Exame | Prescricao → Medicamento) | (Vacinacao | Vermifugacao | HistoricoPeso | Comportamento | Recomendacao | Lembrete | RegistroDiario)`
+
+O arquivo `Fidelis.Api/Fidelis.http` traz as mesmas requisições prontas para Rider, VS Code (REST Client) ou Visual Studio.
+
+<hr/>
+
 ## Estrutura do projeto
 
 ```text
 Fidelis.sln
+├── docker-compose.yml                 MongoDB local
 ├── Fidelis.Api
+│   ├── Auditoria/                     Middleware, fila e BackgroundService de auditoria
+│   ├── Controllers/                   17 controllers REST
+│   ├── Exceptions/                    GlobalExceptionHandler (ProblemDetails)
+│   ├── Extensions/                    DI, JWT, Swagger, Mongo, Health Checks, OpenTelemetry
+│   ├── Hateoas/                       Link, ResourceResponse, PagedResponse, HateoasController
+│   ├── HealthChecks/                  MongoHealthCheck, criação de índices
+│   └── Program.cs
 ├── Fidelis.Application
+│   ├── Common/                        QueryParameters, PagedResult, FilterBuilder, TextFilter
+│   ├── DTOs/                          Requests, Responses e QueryParameters por recurso
+│   ├── Interfaces/Repositories/       Contratos de persistência (relacional e NoSQL)
+│   └── Services/                      Casos de uso
 ├── Fidelis.Domain
+│   └── Entities/                      14 entidades relacionais + RegistroDiario + LogAuditoria
 ├── Fidelis.Infrastructure
+│   ├── Migrations/                    Migrations do EF Core (Oracle)
+│   ├── Mongo/                         MongoDbContext, mapeamentos BSON, repositórios NoSQL
+│   ├── Persistence/                   FidelisContext + configurações Fluent API
+│   └── Repositories/                  Repository<T>, QuerySorter e repositórios concretos
 ├── Fidelis.UnitTests
 └── Fidelis.IntegrationTests
 ```
-
-## Observações
-
-1. A API usa Swagger/OpenAPI para documentação dos endpoints.
-2. As validações de domínio podem retornar `400 BadRequest` quando regras esperadas forem violadas.
-3. O tratamento global de exceções padroniza as respostas de erro.

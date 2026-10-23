@@ -1,10 +1,11 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 
 namespace Fidelis.Application.Services.Interfaces;
 
 public interface IExameService
 {
-    List<ExameResponse> GetAll();
+    PagedResult<ExameResponse> GetAll(ExameQueryParameters query);
     ExameResponse? GetById(int id);
     ExameResponse Create(ExameRequest request);
     ExameResponse? Update(int id, ExameRequest request);

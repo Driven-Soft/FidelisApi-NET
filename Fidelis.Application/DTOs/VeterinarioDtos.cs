@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -70,3 +72,28 @@ public class VeterinarioResponse
     }
 }
 
+public class VeterinarioQueryParameters : QueryParameters
+{
+    public string? Nome { get; set; }
+
+    public string? Crmv { get; set; }
+
+    public string? Especialidade { get; set; }
+
+    public int? ClinicaId { get; set; }
+
+    public IReadOnlyList<Expression<Func<Veterinario, bool>>> ToFilters()
+    {
+        var nome = TextFilter.Normalize(Nome);
+        var crmv = Crmv?.Trim();
+        var especialidade = TextFilter.Normalize(Especialidade);
+        var clinicaId = ClinicaId.GetValueOrDefault();
+
+        return new FilterBuilder<Veterinario>()
+            .AddIf(nome is not null, veterinario => veterinario.Nome.ToUpper().Contains(nome!))
+            .AddIf(!string.IsNullOrWhiteSpace(crmv), veterinario => veterinario.Crmv == crmv)
+            .AddIf(especialidade is not null, veterinario => veterinario.Especialidade.ToUpper().Contains(especialidade!))
+            .AddIf(ClinicaId.HasValue, veterinario => veterinario.ClinicaId == clinicaId)
+            .Build();
+    }
+}

@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -66,3 +68,24 @@ public class ClinicaResponse
     }
 }
 
+public class ClinicaQueryParameters : QueryParameters
+{
+    public string? Nome { get; set; }
+
+    public string? Cnpj { get; set; }
+
+    public string? Email { get; set; }
+
+    public IReadOnlyList<Expression<Func<Clinica, bool>>> ToFilters()
+    {
+        var nome = TextFilter.Normalize(Nome);
+        var cnpj = Cnpj?.Trim();
+        var email = TextFilter.Normalize(Email);
+
+        return new FilterBuilder<Clinica>()
+            .AddIf(nome is not null, clinica => clinica.Nome.ToUpper().Contains(nome!))
+            .AddIf(!string.IsNullOrWhiteSpace(cnpj), clinica => clinica.Cnpj == cnpj)
+            .AddIf(email is not null, clinica => clinica.Email.ToUpper().Contains(email!))
+            .Build();
+    }
+}

@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class ComportamentoService : IComportamentoService
         _repository = repository;
     }
 
-    public List<ComportamentoResponse> GetAll()
+    public PagedResult<ComportamentoResponse> GetAll(ComportamentoQueryParameters query)
     {
-        var comportamentos = _repository.GetAll();
-        return comportamentos.Select(comportamento => new ComportamentoResponse(comportamento)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(comportamento => new ComportamentoResponse(comportamento));
     }
 
     public ComportamentoResponse? GetById(int id)

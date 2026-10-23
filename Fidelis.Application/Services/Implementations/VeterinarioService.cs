@@ -1,3 +1,4 @@
+using Fidelis.Application.Common;
 using Fidelis.Application.DTOs;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Application.Services.Interfaces;
@@ -13,10 +14,11 @@ public class VeterinarioService : IVeterinarioService
         _repository = repository;
     }
 
-    public List<VeterinarioResponse> GetAll()
+    public PagedResult<VeterinarioResponse> GetAll(VeterinarioQueryParameters query)
     {
-        var veterinarios = _repository.GetAll();
-        return veterinarios.Select(veterinario => new VeterinarioResponse(veterinario)).ToList();
+        return _repository
+            .GetPaged(query, query.ToFilters())
+            .Map(veterinario => new VeterinarioResponse(veterinario));
     }
 
     public VeterinarioResponse? GetById(int id)

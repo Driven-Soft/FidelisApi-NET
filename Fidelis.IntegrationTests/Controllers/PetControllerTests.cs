@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Fidelis.Application.DTOs;
-using Fidelis.Domain.Entities;
 using Fidelis.IntegrationTests.Dtos;
 using Xunit;
 
@@ -21,8 +20,6 @@ public class PetControllerTests : IAsyncLifetime
         _factory = factory;
     }
 
-    // Os endpoints de Pet exigem [Authorize]; cada teste roda com um cliente
-    // já autenticado (tutor de teste cadastrado + login feito automaticamente).
     public async Task InitializeAsync()
     {
         _client = await _factory.CreateAuthenticatedClientAsync();
@@ -30,30 +27,9 @@ public class PetControllerTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    /// <summary>
-    /// Cria um Tutor diretamente no banco InMemory (via DbContext) para servir
-    /// de dono do Pet nos testes, evitando repetir o fluxo de criação de Tutor
-    /// via HTTP em todo teste.
-    /// </summary>
-    private int CriarTutorDeApoio()
+    private static PetRequest NovoPetRequest(int tutorId, string nome = "Rex") => new()
     {
-        using var context = _factory.CreateDbContext();
-        var tutor = new Tutor(
-            cpf: Guid.NewGuid().ToString("N")[..11],
-            nome: "Tutor de Apoio",
-            email: $"{Guid.NewGuid():N}@example.com",
-            senha: "123456",
-            telefone: "11988476632",
-            endereco: "Rua de Apoio, 1");
-
-        context.Tutores.Add(tutor);
-        context.SaveChanges();
-        return tutor.Id;
-    }
-
-    private static PetRequest NovoPetRequest(int tutorId) => new()
-    {
-        Nome = "Rex",
+        Nome = nome,
         Especie = "Cachorro",
         Raca = "Labrador",
         Sexo = 'M',
@@ -63,91 +39,103 @@ public class PetControllerTests : IAsyncLifetime
     };
 
     [Fact]
-    public async Task PostApiPet_RequestValido_Retorna201ComPetCriado()
+    public async Task PostApiPet_RequestValido_Retorna201ComPetELinksHateoas()
     {
-        // Arrange
-        var tutorId = CriarTutorDeApoio();
-        var request = NovoPetRequest(tutorId);
+        var tutorId = _factory.SeedTutor();
 
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/Pet", request);
+        var response = await _client.PostAsJsonAsync("/api/Pet", NovoPetRequest(tutorId));
 
-        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<PetResponseDto>(JsonOptions);
-        Assert.NotNull(body);
-        Assert.Equal("Rex", body!.Nome);
+        var body = await response.Content.ReadFromJsonAsync<ResourceDto<PetResponseDto>>(JsonOptions);
+        Assert.Equal("Rex", body!.Data.Nome);
         Assert.NotNull(response.Headers.Location);
+        Assert.Contains(body.Links, l => l.Rel == "self" && l.Method == "GET" && l.Href.EndsWith($"/api/Pet/{body.Data.Id}"));
+        Assert.Contains(body.Links, l => l.Rel == "update" && l.Method == "PUT");
+        Assert.Contains(body.Links, l => l.Rel == "partial-update" && l.Method == "PATCH");
+        Assert.Contains(body.Links, l => l.Rel == "delete" && l.Method == "DELETE");
+        Assert.Contains(body.Links, l => l.Rel == "collection");
     }
 
     [Fact]
-    public async Task GetApiPet_ApósCriarPet_ListaContemOPetCriado()
+    public async Task GetApiPet_AposCriarPet_PaginaContemOPetCriado()
     {
-        // Arrange
-        var tutorId = CriarTutorDeApoio();
-        await _client.PostAsJsonAsync("/api/Pet", NovoPetRequest(tutorId));
+        var tutorId = _factory.SeedTutor();
+        await _client.PostAsJsonAsync("/api/Pet", NovoPetRequest(tutorId, "Bidu"));
 
-        // Act
-        var response = await _client.GetAsync("/api/Pet");
+        var response = await _client.GetAsync($"/api/Pet?tutorId={tutorId}");
 
-        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<List<PetResponseDto>>(JsonOptions);
-        Assert.NotNull(body);
-        Assert.Contains(body!, p => p.Nome == "Rex");
+        var body = await response.Content.ReadFromJsonAsync<PagedDto<PetResponseDto>>(JsonOptions);
+        var item = Assert.Single(body!.Items);
+        Assert.Equal("Bidu", item.Data.Nome);
+        Assert.NotEmpty(item.Links);
+    }
+
+    [Fact]
+    public async Task GetApiPetById_PetExistente_Retorna200ComLinks()
+    {
+        var petId = _factory.SeedPet("Paçoca");
+
+        var response = await _client.GetAsync($"/api/Pet/{petId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ResourceDto<PetResponseDto>>(JsonOptions);
+        Assert.Equal("Paçoca", body!.Data.Nome);
+        Assert.Equal(5, body.Links.Count);
     }
 
     [Fact]
     public async Task GetApiPetById_PetInexistente_Retorna404()
     {
-        // Act
         var response = await _client.GetAsync("/api/Pet/999999");
 
-        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task PatchApiPet_ApenasNomeInformado_Retorna200ComNomeAtualizado()
     {
-        // Arrange
-        var tutorId = CriarTutorDeApoio();
+        var tutorId = _factory.SeedTutor();
         var created = await _client.PostAsJsonAsync("/api/Pet", NovoPetRequest(tutorId));
-        var createdPet = await created.Content.ReadFromJsonAsync<PetResponseDto>(JsonOptions);
-        var patchRequest = new PetPatchRequest { Nome = "Rex Segundo" };
+        var createdPet = await created.Content.ReadFromJsonAsync<ResourceDto<PetResponseDto>>(JsonOptions);
 
-        // Act
-        var response = await _client.PatchAsJsonAsync($"/api/Pet/{createdPet!.Id}", patchRequest);
+        var response = await _client.PatchAsJsonAsync($"/api/Pet/{createdPet!.Data.Id}", new PetPatchRequest { Nome = "Rex Segundo" });
 
-        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<PetResponseDto>(JsonOptions);
-        Assert.Equal("Rex Segundo", body!.Nome);
-        Assert.Equal(createdPet.Especie, body.Especie);
+        var body = await response.Content.ReadFromJsonAsync<ResourceDto<PetResponseDto>>(JsonOptions);
+        Assert.Equal("Rex Segundo", body!.Data.Nome);
+        Assert.Equal(createdPet.Data.Especie, body.Data.Especie);
+    }
+
+    [Fact]
+    public async Task DeleteApiPet_PetExistente_Retorna204EDepois404()
+    {
+        var petId = _factory.SeedPet();
+
+        var deleteResponse = await _client.DeleteAsync($"/api/Pet/{petId}");
+        var getResponse = await _client.GetAsync($"/api/Pet/{petId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 
     [Fact]
     public async Task DeleteApiPet_PetInexistente_Retorna404()
     {
-        // Act
         var response = await _client.DeleteAsync("/api/Pet/999999");
 
-        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task PostApiPet_SexoInvalido_Retorna400()
     {
-        // Arrange
-        var tutorId = CriarTutorDeApoio();
+        var tutorId = _factory.SeedTutor();
         var request = NovoPetRequest(tutorId);
-        request.Sexo = 'X'; // regra de domínio só aceita 'M' ou 'F'
+        request.Sexo = 'X';
 
-        // Act
         var response = await _client.PostAsJsonAsync("/api/Pet", request);
 
-        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
+using Fidelis.Application.Common;
 using Fidelis.Domain.Entities;
 
 namespace Fidelis.Application.DTOs;
@@ -63,3 +65,32 @@ public class ConsultaResponse
     }
 }
 
+public class ConsultaQueryParameters : QueryParameters
+{
+    public int? PetId { get; set; }
+
+    public int? VeterinarioId { get; set; }
+
+    public string? Tipo { get; set; }
+
+    public DateTime? DataInicio { get; set; }
+
+    public DateTime? DataFim { get; set; }
+
+    public IReadOnlyList<Expression<Func<Consulta, bool>>> ToFilters()
+    {
+        var petId = PetId.GetValueOrDefault();
+        var veterinarioId = VeterinarioId.GetValueOrDefault();
+        var tipo = TextFilter.Normalize(Tipo);
+        var dataInicio = DataInicio.GetValueOrDefault();
+        var dataFim = DataFim.GetValueOrDefault();
+
+        return new FilterBuilder<Consulta>()
+            .AddIf(PetId.HasValue, consulta => consulta.PetId == petId)
+            .AddIf(VeterinarioId.HasValue, consulta => consulta.VeterinarioId == veterinarioId)
+            .AddIf(tipo is not null, consulta => consulta.Tipo.ToUpper().Contains(tipo!))
+            .AddIf(DataInicio.HasValue, consulta => consulta.DataHora >= dataInicio)
+            .AddIf(DataFim.HasValue, consulta => consulta.DataHora <= dataFim)
+            .Build();
+    }
+}

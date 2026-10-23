@@ -1,6 +1,58 @@
 @Fidelis_HostAddress = http://localhost:5232
+@token = cole-aqui-o-token-do-login
 
-GET {{Fidelis_HostAddress}}/weatherforecast/
-Accept: application/json
+POST {{Fidelis_HostAddress}}/api/Tutor
+Content-Type: application/json
+
+{
+  "cpf": "11122233344",
+  "nome": "Maria Teste",
+  "email": "maria.teste@example.com",
+  "senha": "123456",
+  "telefone": "11988476632",
+  "endereco": "Rua das Flores, 100"
+}
 
 ###
+
+POST {{Fidelis_HostAddress}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "maria.teste@example.com",
+  "senha": "123456"
+}
+
+###
+
+GET {{Fidelis_HostAddress}}/api/Pet?page=1&pageSize=5&sortBy=nome&sortDirection=asc&especie=cachorro
+Authorization: Bearer {{token}}
+
+###
+
+POST {{Fidelis_HostAddress}}/api/RegistroDiario
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "petId": 1,
+  "titulo": "Passeio no parque",
+  "descricao": "Correu bastante e brincou com outros cães.",
+  "humor": "Feliz",
+  "tags": ["passeio", "energia"],
+  "dataRegistro": "2026-10-20T10:00:00Z"
+}
+
+###
+
+GET {{Fidelis_HostAddress}}/api/RegistroDiario?petId=1&tag=passeio
+Authorization: Bearer {{token}}
+
+###
+
+GET {{Fidelis_HostAddress}}/api/Auditoria?metodo=POST&pageSize=20
+Authorization: Bearer {{token}}
+
+###
+
+GET {{Fidelis_HostAddress}}/health/ready
