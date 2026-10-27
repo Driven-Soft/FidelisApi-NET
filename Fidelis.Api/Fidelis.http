@@ -55,4 +55,22 @@ Authorization: Bearer {{token}}
 
 ###
 
+# Pesagem avaliada pelo serviço de IA: a resposta traz avaliacaoIa (risco, faixa e justificativa)
+POST {{Fidelis_HostAddress}}/api/HistoricoPeso
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "pesoKg": 3.2,
+  "dataMedicao": "2026-10-26T00:00:00",
+  "petId": 1
+}
+
+###
+
+GET {{Fidelis_HostAddress}}/api/HistoricoPeso/pet/1/avaliacao
+Authorization: Bearer {{token}}
+
+###
+
 GET {{Fidelis_HostAddress}}/health/ready

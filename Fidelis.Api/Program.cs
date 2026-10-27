@@ -33,6 +33,7 @@ try
     builder.Services.AddRepositories();
     builder.Services.AddDbContext(builder.Configuration);
     builder.Services.AddMongo(builder.Configuration);
+    builder.Services.AddFidelisAi(builder.Configuration);
     builder.Services.AddJwtAuthentication(builder.Configuration);
     builder.Services.AddObservability();
     builder.Services.AddFidelisHealthChecks();

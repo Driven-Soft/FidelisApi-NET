@@ -24,6 +24,7 @@ public static class ServiceExtensions
         services.AddScoped<IVeterinarioService, VeterinarioService>();
         services.AddScoped<IRegistroDiarioService, RegistroDiarioService>();
         services.AddScoped<IAuditoriaService, AuditoriaService>();
+        services.AddScoped<IAnalisePesoService, AnalisePesoService>();
 
         return services;
     }
