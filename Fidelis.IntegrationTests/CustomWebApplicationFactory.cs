@@ -120,4 +120,30 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         context.SaveChanges();
         return pet.Id;
     }
+
+    public int SeedVeterinario(string email)
+    {
+        using var context = CreateDbContext();
+        var clinica = new Clinica(
+            "Clínica de Apoio",
+            Guid.NewGuid().ToString("N")[..14],
+            "1133334444",
+            $"{Guid.NewGuid():N}@example.com",
+            "Rua de Apoio, 2");
+
+        context.Clinicas.Add(clinica);
+        context.SaveChanges();
+
+        var veterinario = new Veterinario(
+            Guid.NewGuid().ToString("N")[..8],
+            "Veterinário de Apoio",
+            email,
+            "123456",
+            "Clínica geral",
+            clinica.Id);
+
+        context.Veterinarios.Add(veterinario);
+        context.SaveChanges();
+        return veterinario.Id;
+    }
 }

@@ -9,4 +9,14 @@ public class VeterinarioRepository : Repository<Veterinario>, IVeterinarioReposi
     public VeterinarioRepository(FidelisContext context) : base(context)
     {
     }
+
+    public Veterinario? GetByEmail(string email)
+    {
+        var normalized = email.Trim().ToUpper();
+
+        return Set
+            .Where(veterinario => veterinario.Email.ToUpper() == normalized)
+            .OrderByDescending(veterinario => veterinario.DataCriacao)
+            .FirstOrDefault();
+    }
 }

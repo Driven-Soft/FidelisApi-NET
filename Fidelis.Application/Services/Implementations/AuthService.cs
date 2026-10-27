@@ -14,36 +14,80 @@ namespace Fidelis.Application.Services.Implementations;
 public class AuthService : IAuthService
 {
     private readonly ITutorRepository _tutorRepository;
+    private readonly IVeterinarioRepository _veterinarioRepository;
     private readonly JwtSettings _jwtSettings;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(ITutorRepository tutorRepository, IOptions<JwtSettings> jwtOptions, ILogger<AuthService> logger)
+    public AuthService(
+        ITutorRepository tutorRepository,
+        IVeterinarioRepository veterinarioRepository,
+        IOptions<JwtSettings> jwtOptions,
+        ILogger<AuthService> logger)
     {
         _tutorRepository = tutorRepository;
+        _veterinarioRepository = veterinarioRepository;
         _jwtSettings = jwtOptions.Value;
         _logger = logger;
     }
 
     public LoginResponse? Login(LoginRequest request)
     {
+        var tipo = request.Tipo.Trim().ToUpperInvariant();
+        if (tipo != "TUTOR" && tipo != "VETERINARIO")
+            throw new ArgumentException("Tipo deve ser TUTOR ou VETERINARIO.");
+
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Senha))
             return null;
 
+        var response = tipo == "TUTOR" ? LoginTutor(request) : LoginVeterinario(request);
+
+        if (response is null)
+            _logger.LogWarning("Falha de autenticação para o email {Email}", request.Email);
+
+        return response;
+    }
+
+    private LoginResponse? LoginTutor(LoginRequest request)
+    {
         var tutor = _tutorRepository.GetByEmail(request.Email);
 
         if (tutor is null || tutor.Senha != request.Senha)
-        {
-            _logger.LogWarning("Falha de autenticação para o email {Email}", request.Email);
             return null;
-        }
 
+        var response = GerarLogin("TUTOR", tutor.Id, tutor.Email, tutor.Nome);
+        response.TutorId = tutor.Id;
+
+        _logger.LogInformation("Tutor {TutorId} autenticado com sucesso", tutor.Id);
+
+        return response;
+    }
+
+    private LoginResponse? LoginVeterinario(LoginRequest request)
+    {
+        var veterinario = _veterinarioRepository.GetByEmail(request.Email);
+
+        if (veterinario is null || veterinario.Senha != request.Senha)
+            return null;
+
+        var response = GerarLogin("VETERINARIO", veterinario.Id, veterinario.Email, veterinario.Nome);
+        response.VeterinarioId = veterinario.Id;
+
+        _logger.LogInformation("Veterinário {VeterinarioId} autenticado com sucesso", veterinario.Id);
+
+        return response;
+    }
+
+    private LoginResponse GerarLogin(string tipo, int id, string email, string nome)
+    {
         var expiraEm = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiresInMinutes);
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, tutor.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, tutor.Email),
-            new(ClaimTypes.Name, tutor.Nome),
+            new(JwtRegisteredClaimNames.Sub, id.ToString()),
+            new(JwtRegisteredClaimNames.Email, email),
+            new(ClaimTypes.Name, nome),
+            new(ClaimTypes.Role, tipo),
+            new("tipo", tipo),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
@@ -57,14 +101,13 @@ public class AuthService : IAuthService
             expires: expiraEm,
             signingCredentials: credentials);
 
-        _logger.LogInformation("Tutor {TutorId} autenticado com sucesso", tutor.Id);
-
         return new LoginResponse
         {
             Token = new JwtSecurityTokenHandler().WriteToken(token),
             ExpiraEm = expiraEm,
-            TutorId = tutor.Id,
-            Nome = tutor.Nome
+            Tipo = tipo,
+            Nome = nome,
+            Email = email
         };
     }
 }

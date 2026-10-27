@@ -282,7 +282,7 @@ O `docker-compose.yml` na raiz sobe um `mongo:7.0` em `localhost:27017`. A conne
 ## Autenticação
 
 1. `POST /api/Tutor`: cadastro (público)
-2. `POST /api/Auth/login`: retorna `{ token, expiraEm, tutorId, nome }`
+2. `POST /api/Auth/login` com `{ email, senha, tipo }`, onde `tipo` é `TUTOR` (padrão quando omitido) ou `VETERINARIO`. Retorna `{ token, expiraEm, tipo, tutorId, veterinarioId, nome, email }`: `tutorId` vem preenchido no login de tutor e `veterinarioId` no de veterinário. O token leva o tipo nas claims `role` e `tipo`; `tipo` inválido responde **400**
 3. Envie `Authorization: Bearer {token}` nas demais requisições. No Swagger, clique em **Authorize** e cole só o token.
 
 Sem token, qualquer endpoint protegido responde **401 Unauthorized**.
@@ -456,7 +456,7 @@ Documento salvo no MongoDB (coleção `registros_diario`):
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
-| `POST` | `/api/Auth/login` | Login (**público**) |
+| `POST` | `/api/Auth/login` | Login de tutor ou veterinário (**público**) |
 | `GET` | `/health/live` | Liveness (**público**) |
 | `GET` | `/health/ready` | Readiness: Oracle + MongoDB (**público**) |
 | `GET` | `/health` | Relatório completo (**público**) |
