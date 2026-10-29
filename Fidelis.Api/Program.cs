@@ -65,6 +65,12 @@ try
     app.UseExceptionHandler();
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.MapGet("/wellcome", () => Results.Text("Rota adicionada"))
+        .WithName("Wellcome")
+        .WithTags("Health")
+        .Produces<string>(StatusCodes.Status200OK);
+
     app.MapControllers();
 
     app.MapHealthChecks("/health/live", new HealthCheckOptions
