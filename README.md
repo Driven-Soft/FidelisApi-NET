@@ -57,7 +57,7 @@ Principais recursos:
 * Auditoria automática de toda operação de escrita, gravada no MongoDB de forma assíncrona
 * Tratamento global de exceções com `ProblemDetails` (RFC 7807)
 * Logging estruturado (Serilog), tracing e métricas (OpenTelemetry), health checks de Oracle e MongoDB
-* 161 casos de teste unitários e 44 de integração (xUnit, padrão AAA)
+* 195 casos de teste unitários e 55 de integração (xUnit, padrão AAA)
 
 <hr/>
 
@@ -592,7 +592,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 Todos os testes seguem o padrão **AAA (Arrange, Act, Assert)**, com os três blocos separados por linha em branco, e a convenção de nomes `Metodo_Cenario_ResultadoEsperado`.
 
-### Fidelis.UnitTests (xUnit + Moq): 189 casos
+### Fidelis.UnitTests (xUnit + Moq): 195 casos
 
 | Pasta | O que cobre |
 | --- | --- |
@@ -601,7 +601,7 @@ Todos os testes seguem o padrão **AAA (Arrange, Act, Assert)**, com os três bl
 | `Services/` | Pet, Tutor, Consulta, Auth (geração e validação de JWT), Clinica, Veterinario, Vacinacao, Lembrete, Prescricao, HistoricoPeso, RegistroDiario (inclui validação do pet no Oracle) e Auditoria, com repositórios simulados via Moq. `AnalisePesoService`: gravação das ações por risco, idempotência, falha da IA sem exceção, espécie não suportada, pesagem retroativa e montagem do payload |
 | `Infrastructure/` | `QuerySorter`: ordenação ascendente e descendente e rejeição de campos inválidos ou de navegação. `FidelisAiClient`: JSON em snake_case, leitura da resposta e status de erro |
 
-### Fidelis.IntegrationTests (xUnit + WebApplicationFactory): 52 casos
+### Fidelis.IntegrationTests (xUnit + WebApplicationFactory): 55 casos
 
 * `CustomWebApplicationFactory` troca o Oracle por **EF Core InMemory** e os repositórios do MongoDB por **implementações em memória**, então os testes rodam sem nenhum banco externo
 * `PetControllerTests` e `TutorControllerTests`: CRUD completo, 404, 400 e links HATEOAS
