@@ -48,7 +48,7 @@ if ! az webapp show \
         --name "$WEBAPP_NAME" \
         --resource-group "$RESOURCE_GROUP" \
         --plan "$APP_SERVICE_PLAN" \
-        --runtime "DOTNET:10"
+        --runtime "DOTNETCORE:10.0"
 else
     echo "Web App já existe."
 fi
