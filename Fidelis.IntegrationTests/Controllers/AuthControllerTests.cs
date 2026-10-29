@@ -71,6 +71,55 @@ public class AuthControllerTests
     }
 
     [Fact]
+    public async Task PostApiAuthLogin_TutorComTipo_RetornaSessaoNoFormatoDoApp()
+    {
+        var client = _factory.CreateClient();
+        var cpf = Guid.NewGuid().ToString("N")[..11];
+        var email = $"{Guid.NewGuid():N}@example.com";
+        await client.PostAsJsonAsync("/api/Tutor", NovoTutorRequest(cpf, email));
+
+        var response = await client.PostAsJsonAsync("/api/Auth/login",
+            new LoginRequest { Email = email, Senha = "123456", Tipo = "TUTOR" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        Assert.Equal("TUTOR", body.GetProperty("tipo").GetString());
+        Assert.True(body.GetProperty("tutorId").GetInt32() > 0);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("veterinarioId").ValueKind);
+        Assert.Equal(email, body.GetProperty("email").GetString());
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z$", body.GetProperty("expiraEm").GetString());
+    }
+
+    [Fact]
+    public async Task PostApiAuthLogin_Veterinario_Retorna200ComVeterinarioId()
+    {
+        var email = $"{Guid.NewGuid():N}@example.com";
+        var veterinarioId = _factory.SeedVeterinario(email);
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/Auth/login",
+            new LoginRequest { Email = email, Senha = "123456", Tipo = "VETERINARIO" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions);
+        Assert.Equal("VETERINARIO", body!.Tipo);
+        Assert.Equal(veterinarioId, body.VeterinarioId);
+        Assert.Null(body.TutorId);
+        Assert.False(string.IsNullOrWhiteSpace(body.Token));
+    }
+
+    [Fact]
+    public async Task PostApiAuthLogin_TipoInvalido_Retorna400()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/Auth/login",
+            new LoginRequest { Email = "alguem@example.com", Senha = "123456", Tipo = "ADMIN" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetApiPet_SemToken_Retorna401()
     {
         var client = _factory.CreateClient();
