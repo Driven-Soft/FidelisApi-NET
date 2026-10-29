@@ -667,3 +667,23 @@ Fidelis.sln
 ├── Fidelis.UnitTests
 └── Fidelis.IntegrationTests
 ```
+
+<hr/>
+
+# DevOps - Sprint 4
+
+## Arquitetura da solução
+![Arquitetura](docs/arquitetura-devops.png)
+
+## Descrição do fluxo CI/CD
+
+1. O desenvolvedor altera o código da API.
+2. O código é enviado ao Azure Repos e mergeado na branch `main`.
+3. O trigger da pipeline de CI é acionado automaticamente.
+4. A CI executa restore, build, testes e publish.
+5. Um artifact `.zip` é gerado e publicado.
+6. O Continuous Deployment Trigger da Release detecta o novo artifact.
+7. A pipeline de CD executa o deploy no Azure App Service Linux.
+8. As variáveis de ambiente da aplicação são aplicadas no App Service.
+9. A API publicada acessa o Oracle FIAP por meio da connection string.
+10. O usuário acessa o Swagger via HTTPS e executa operações CRUD persistidas no banco.

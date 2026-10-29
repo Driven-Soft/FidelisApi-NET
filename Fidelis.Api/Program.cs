@@ -65,6 +65,12 @@ try
     app.UseExceptionHandler();
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.MapGet("/wellcome", () => Results.Text("Fidelis Sprint 4 - CI/CD funcionando"))
+        .WithName("Wellcome")
+        .WithTags("Health")
+        .Produces<string>(StatusCodes.Status200OK);
+
     app.MapControllers();
 
     app.MapHealthChecks("/health/live", new HealthCheckOptions
