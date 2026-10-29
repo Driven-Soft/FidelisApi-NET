@@ -66,7 +66,7 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapGet("/wellcome", () => Results.Text("Rota adicionada"))
+    app.MapGet("/wellcome", () => Results.Text("Fidelis Sprint 4 - CI/CD funcionando"))
         .WithName("Wellcome")
         .WithTags("Health")
         .Produces<string>(StatusCodes.Status200OK);
