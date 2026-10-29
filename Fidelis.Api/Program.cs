@@ -37,6 +37,17 @@ try
     builder.Services.AddObservability();
     builder.Services.AddFidelisHealthChecks();
 
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("DevCors", policy =>
+        {
+            policy
+                .AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+    });
+
     var app = builder.Build();
 
     app.UseSerilogRequestLogging(options =>
@@ -61,6 +72,12 @@ try
     }
 
     app.UseHttpsRedirection();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseCors("DevCors");
+    }
+
     app.UseExceptionHandler();
     app.UseAuthentication();
     app.UseAuthorization();
