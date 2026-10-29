@@ -69,3 +69,35 @@ public class AuditoriaResponseDto
     public bool Sucesso { get; set; }
     public string? UsuarioId { get; set; }
 }
+
+public class HistoricoPesoResponseDto
+{
+    public int Id { get; set; }
+    public decimal PesoKg { get; set; }
+    public DateTime DataMedicao { get; set; }
+    public int PetId { get; set; }
+    public AvaliacaoIaDto? AvaliacaoIa { get; set; }
+}
+
+public class AvaliacaoPesoResponseDto
+{
+    public int PetId { get; set; }
+    public int HistoricoPesoId { get; set; }
+    public DateTime DataMedicao { get; set; }
+    public AvaliacaoIaDto Avaliacao { get; set; } = new();
+}
+
+public class AvaliacaoIaDto
+{
+    public string Risco { get; set; } = string.Empty;
+    public string TipoRecomendacao { get; set; } = string.Empty;
+    public FaixaPesoDto FaixaEsperadaKg { get; set; } = new();
+    public decimal PesoInformadoKg { get; set; }
+    public string Justificativa { get; set; } = string.Empty;
+}
+
+public class FaixaPesoDto
+{
+    public decimal Min { get; set; }
+    public decimal Max { get; set; }
+}

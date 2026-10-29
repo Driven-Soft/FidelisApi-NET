@@ -9,4 +9,13 @@ public class HistoricoPesoRepository : Repository<HistoricoPeso>, IHistoricoPeso
     public HistoricoPesoRepository(FidelisContext context) : base(context)
     {
     }
+
+    public HistoricoPeso? GetLatestByPetId(int petId)
+    {
+        return Set
+            .Where(historico => historico.PetId == petId)
+            .OrderByDescending(historico => historico.DataMedicao)
+            .ThenByDescending(historico => historico.Id)
+            .FirstOrDefault();
+    }
 }

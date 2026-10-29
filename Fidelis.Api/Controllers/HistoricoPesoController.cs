@@ -42,9 +42,25 @@ public class HistoricoPesoController : HateoasController
         return historicoPeso is null ? NotFound() : Ok(ToResource(historicoPeso, historicoPeso.Id));
     }
 
+    [HttpGet("pet/{petId:int}/avaliacao")]
+    [SwaggerOperation(
+        Summary = "Avalia a pesagem mais recente do pet com o serviço de IA",
+        Description = "Devolve a faixa de peso esperada para o perfil do pet, o risco (VERDE, AMARELO ou VERMELHO) e a justificativa. Somente leitura: não grava recomendações nem lembretes. Responde 404 quando o pet não existe ou não tem pesagens, 400 para espécies que não são cão ou gato e 503 quando o serviço de IA está indisponível.")]
+    [ProducesResponseType(typeof(ResourceResponse<AvaliacaoPesoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    public IActionResult GetAvaliacao(int petId)
+    {
+        var avaliacao = _service.GetAvaliacao(petId);
+        return avaliacao is null ? NotFound() : Ok(ToResource(avaliacao, avaliacao.HistoricoPesoId));
+    }
+
     [HttpPost]
-    [SwaggerOperation(Summary = "Cadastra um novo histórico de peso")]
-    [ProducesResponseType(typeof(ResourceResponse<HistoricoPesoResponse>), StatusCodes.Status201Created)]
+    [SwaggerOperation(
+        Summary = "Cadastra um novo histórico de peso",
+        Description = "Depois de gravar a pesagem, envia o perfil do pet e o peso ao serviço de IA, grava as recomendações e lembretes sugeridos e devolve a avaliação em avaliacaoIa. Se a IA estiver indisponível, a pesagem é gravada mesmo assim e avaliacaoIa vem nula.")]
+    [ProducesResponseType(typeof(ResourceResponse<HistoricoPesoCriadoResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult Create([FromBody] HistoricoPesoRequest request)
     {

@@ -55,6 +55,8 @@ public class GlobalExceptionHandler : IExceptionHandler
             OracleException e => (StatusCodes.Status503ServiceUnavailable, "Banco de dados relacional indisponível", SafeDetail(e)),
             MongoException e => (StatusCodes.Status503ServiceUnavailable, "Banco de dados NoSQL indisponível", SafeDetail(e)),
             TimeoutException e => (StatusCodes.Status503ServiceUnavailable, "Tempo de resposta excedido", SafeDetail(e)),
+            HttpRequestException e => (StatusCodes.Status503ServiceUnavailable, "Serviço de IA indisponível", SafeDetail(e)),
+            TaskCanceledException { InnerException: TimeoutException } e => (StatusCodes.Status503ServiceUnavailable, "Tempo de resposta excedido", SafeDetail(e)),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno do servidor", _environment.IsDevelopment()
                 ? exception.ToString()
                 : "Ocorreu um erro inesperado. Tente novamente mais tarde.")

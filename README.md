@@ -29,10 +29,11 @@
 7. [Paginação, ordenação e filtros](#paginação-ordenação-e-filtros)
 8. [HATEOAS](#hateoas)
 9. [Endpoints](#endpoints)
-10. [Observabilidade e Health Checks](#observabilidade-e-health-checks)
-11. [Testes automatizados](#testes-automatizados)
-12. [Roteiro de teste manual no Swagger](#roteiro-de-teste-manual-no-swagger)
-13. [Estrutura do projeto](#estrutura-do-projeto)
+10. [Integração com o serviço de IA](#integração-com-o-serviço-de-ia)
+11. [Observabilidade e Health Checks](#observabilidade-e-health-checks)
+12. [Testes automatizados](#testes-automatizados)
+13. [Roteiro de teste manual no Swagger](#roteiro-de-teste-manual-no-swagger)
+14. [Estrutura do projeto](#estrutura-do-projeto)
 
 <hr/>
 
@@ -487,6 +488,47 @@ A especificação OpenAPI completa fica disponível em `http://localhost:5232/sw
 
 <hr/>
 
+## Integração com o serviço de IA
+
+A cada pesagem registrada, a API consulta o serviço de IA [FidelisAI](https://github.com/Driven-Soft/FidelisIA) (Python/FastAPI), que estima a faixa de peso esperada para o perfil do pet e classifica o risco em `VERDE`, `AMARELO` ou `VERMELHO`. A API continua sendo a única com acesso ao banco: grava em `RECOMENDACOES` e `LEMBRETES` as ações sugeridas, sem alteração de schema.
+
+```text
+POST /api/HistoricoPeso → grava HISTORICO_PESOS → POST /analise (FidelisAI)
+                                                  ↓
+                     resposta 201 com avaliacaoIa ← grava RECOMENDACOES e LEMBRETES
+```
+
+| Regra | Comportamento |
+| --- | --- |
+| Momento | Depois que a pesagem é gravada (`SaveChanges`) |
+| Resiliência | Falha, timeout ou IA desligada **nunca** invalidam a pesagem: a resposta é `201` com `avaliacaoIa: null` e o erro vai para o log |
+| Idempotência | Se o pet já tem recomendação do mesmo `Tipo` nos últimos `JanelaRecomendacaoDias` (30), recomendação e lembrete não são repetidos. Uma escalada de risco (atenção → alerta) gera novo registro |
+| Pesagem retroativa | Só a pesagem mais recente do pet é analisada; registros de datas passadas não geram alerta |
+| Payload | `especie` normalizada de `PETS.Especie` ("Cão", "Cadela", "Gata"… → `Cachorro`/`Gato`; outras espécies não são enviadas), `raca` de `PETS.Raca`, `idade_anos` calculada de `DataNascimento` até `DataMedicao` |
+| Lembrete | `DataPrevista` = data da análise + `prazo_dias`; `TutorId` vem de `PETS.TutorId` |
+
+Endpoints:
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `POST` | `/api/HistoricoPeso` | Grava a pesagem e devolve a avaliação da IA em `avaliacaoIa` |
+| `GET` | `/api/HistoricoPeso/pet/{petId}/avaliacao` | Avalia a pesagem mais recente do pet, sem gravar nada (usado pela tela do pet no app). `404` se o pet não existe ou não tem pesagens, `400` para espécie não avaliada, `503` com a IA indisponível |
+
+Configuração (`appsettings.json`, ou variáveis `FidelisAi__*` no App Service):
+
+```json
+"FidelisAi": {
+  "BaseUrl": "http://localhost:8000",
+  "ApiKey": "",
+  "TimeoutSeconds": 3,
+  "JanelaRecomendacaoDias": 30
+}
+```
+
+Com `BaseUrl` vazio a análise fica desligada. `ApiKey` vai no header `X-API-Key` e deve ser igual à `FIDELIS_IA_API_KEY` do serviço. Falhas de comunicação com a IA (`HttpRequestException` e timeout) são mapeadas para **503** no `GlobalExceptionHandler`, como as do Oracle e do MongoDB. Para rodar localmente, suba o serviço (`docker run -p 8000:8000 fidelis-ia`, ver README do FidelisAI) antes da API. O código fica em `AnalisePesoService` (Application), `FidelisAiClient` (Infrastructure, via `IHttpClientFactory`) e `FidelisAiExtensions` (Api).
+
+<hr/>
+
 ## Observabilidade e Health Checks
 
 ### Health Checks
@@ -550,16 +592,16 @@ dotnet test --collect:"XPlat Code Coverage"
 
 Todos os testes seguem o padrão **AAA (Arrange, Act, Assert)**, com os três blocos separados por linha em branco, e a convenção de nomes `Metodo_Cenario_ResultadoEsperado`.
 
-### Fidelis.UnitTests (xUnit + Moq): 161 casos
+### Fidelis.UnitTests (xUnit + Moq): 189 casos
 
 | Pasta | O que cobre |
 | --- | --- |
 | `Domain/` | Regras de **todas as 16 entidades**: Tutor, Pet, Clinica, Veterinario, Consulta, Vacinacao, Vermifugacao, HistoricoPeso, Prescricao, Lembrete, Medicamento, Exame, Recomendacao, Comportamento, RegistroDiario e LogAuditoria |
 | `Application/` | `QueryParameters` (validação, skip, direção), `PagedResult` (total de páginas, navegação, map), `FilterBuilder`, `TextFilter` e os filtros de Pet, Consulta, Lembrete, Tutor, Vacinacao e HistoricoPeso aplicados sobre coleções reais |
-| `Services/` | Pet, Tutor, Consulta, Auth (geração e validação de JWT), Clinica, Veterinario, Vacinacao, Lembrete, Prescricao, HistoricoPeso, RegistroDiario (inclui validação do pet no Oracle) e Auditoria, com repositórios simulados via Moq |
-| `Infrastructure/` | `QuerySorter`: ordenação ascendente e descendente e rejeição de campos inválidos ou de navegação |
+| `Services/` | Pet, Tutor, Consulta, Auth (geração e validação de JWT), Clinica, Veterinario, Vacinacao, Lembrete, Prescricao, HistoricoPeso, RegistroDiario (inclui validação do pet no Oracle) e Auditoria, com repositórios simulados via Moq. `AnalisePesoService`: gravação das ações por risco, idempotência, falha da IA sem exceção, espécie não suportada, pesagem retroativa e montagem do payload |
+| `Infrastructure/` | `QuerySorter`: ordenação ascendente e descendente e rejeição de campos inválidos ou de navegação. `FidelisAiClient`: JSON em snake_case, leitura da resposta e status de erro |
 
-### Fidelis.IntegrationTests (xUnit + WebApplicationFactory): 44 casos
+### Fidelis.IntegrationTests (xUnit + WebApplicationFactory): 52 casos
 
 * `CustomWebApplicationFactory` troca o Oracle por **EF Core InMemory** e os repositórios do MongoDB por **implementações em memória**, então os testes rodam sem nenhum banco externo
 * `PetControllerTests` e `TutorControllerTests`: CRUD completo, 404, 400 e links HATEOAS
@@ -568,6 +610,7 @@ Todos os testes seguem o padrão **AAA (Arrange, Act, Assert)**, com os três bl
 * `AuditoriaControllerTests`: confirma que escritas geram log com usuário e status
 * `AuthControllerTests`: login válido e inválido, acesso com e sem token
 * `HealthCheckTests`: `/health/live`, `/health/ready` e `/health`
+* `HistoricoPesoControllerTests`: pesagem com IA (recomendação e lembrete gravados), IA fora do ar (pesagem mantida), alerta sem duplicação, escalada de risco e o endpoint de avaliação (200, 404, 400, 503), com o serviço de IA substituído por `InMemoryFidelisAiClient`
 
 <hr/>
 

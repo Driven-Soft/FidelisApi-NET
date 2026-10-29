@@ -4,6 +4,7 @@ using System.Text.Json;
 using Fidelis.Api.Extensions;
 using Fidelis.Api.HealthChecks;
 using Fidelis.Application.DTOs;
+using Fidelis.Application.Interfaces.Clients;
 using Fidelis.Application.Interfaces.Repositories;
 using Fidelis.Domain.Entities;
 using Fidelis.IntegrationTests.Fakes;
@@ -43,8 +44,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IRegistroDiarioRepository>();
             services.RemoveAll<IAuditoriaRepository>();
+            services.RemoveAll<IFidelisAiClient>();
             services.AddSingleton<IRegistroDiarioRepository, InMemoryRegistroDiarioRepository>();
             services.AddSingleton<IAuditoriaRepository, InMemoryAuditoriaRepository>();
+            services.AddSingleton<IFidelisAiClient, InMemoryFidelisAiClient>();
 
             var mongoIndexService = services.FirstOrDefault(d => d.ImplementationType == typeof(MongoIndexHostedService));
             if (mongoIndexService is not null)

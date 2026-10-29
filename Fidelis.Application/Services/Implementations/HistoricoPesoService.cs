@@ -8,10 +8,12 @@ namespace Fidelis.Application.Services.Implementations;
 public class HistoricoPesoService : IHistoricoPesoService
 {
     private readonly IHistoricoPesoRepository _repository;
+    private readonly IAnalisePesoService _analisePesoService;
 
-    public HistoricoPesoService(IHistoricoPesoRepository repository)
+    public HistoricoPesoService(IHistoricoPesoRepository repository, IAnalisePesoService analisePesoService)
     {
         _repository = repository;
+        _analisePesoService = analisePesoService;
     }
 
     public PagedResult<HistoricoPesoResponse> GetAll(HistoricoPesoQueryParameters query)
@@ -27,12 +29,13 @@ public class HistoricoPesoService : IHistoricoPesoService
         return historico is null ? null : new HistoricoPesoResponse(historico);
     }
 
-    public HistoricoPesoResponse Create(HistoricoPesoRequest request)
+    public HistoricoPesoCriadoResponse Create(HistoricoPesoRequest request)
     {
         var historico = request.ToDomain();
         _repository.Add(historico);
         _repository.SaveChanges();
-        return new HistoricoPesoResponse(historico);
+        var avaliacao = _analisePesoService.AnalisarPesagem(historico);
+        return new HistoricoPesoCriadoResponse(historico, avaliacao);
     }
 
     public HistoricoPesoResponse? Update(int id, HistoricoPesoRequest request)
@@ -70,5 +73,10 @@ public class HistoricoPesoService : IHistoricoPesoService
         _repository.Delete(historico);
         _repository.SaveChanges();
         return true;
+    }
+
+    public AvaliacaoPesoResponse? GetAvaliacao(int petId)
+    {
+        return _analisePesoService.GetAvaliacao(petId);
     }
 }

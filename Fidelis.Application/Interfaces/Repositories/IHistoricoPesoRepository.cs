@@ -4,5 +4,6 @@ namespace Fidelis.Application.Interfaces.Repositories;
 
 public interface IHistoricoPesoRepository : IRepository<HistoricoPeso>
 {
+    HistoricoPeso? GetLatestByPetId(int petId);
 }
 

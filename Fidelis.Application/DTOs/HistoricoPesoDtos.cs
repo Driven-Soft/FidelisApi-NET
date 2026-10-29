@@ -44,6 +44,16 @@ public class HistoricoPesoResponse
     }
 }
 
+public class HistoricoPesoCriadoResponse : HistoricoPesoResponse
+{
+    public AvaliacaoPeso? AvaliacaoIa { get; }
+
+    public HistoricoPesoCriadoResponse(HistoricoPeso historico, AvaliacaoPeso? avaliacaoIa) : base(historico)
+    {
+        AvaliacaoIa = avaliacaoIa;
+    }
+}
+
 public class HistoricoPesoQueryParameters : QueryParameters
 {
     public int? PetId { get; set; }

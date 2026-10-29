@@ -9,4 +9,12 @@ public class RecomendacaoRepository : Repository<Recomendacao>, IRecomendacaoRep
     public RecomendacaoRepository(FidelisContext context) : base(context)
     {
     }
+
+    public bool ExistsByPetIdAndTipo(int petId, string tipo, DateTime desde)
+    {
+        return Set.Any(recomendacao =>
+            recomendacao.PetId == petId &&
+            recomendacao.Tipo == tipo &&
+            recomendacao.DataRecomendacao >= desde);
+    }
 }
