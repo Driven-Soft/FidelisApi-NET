@@ -503,7 +503,7 @@ A especificação OpenAPI completa fica disponível em `http://localhost:5232/sw
 
 ## Integração com o serviço de IA
 
-A cada pesagem registrada, a API consulta o serviço de IA [FidelisAI](https://github.com/Driven-Soft/FidelisIA) (Python/FastAPI), que estima a faixa de peso esperada para o perfil do pet e classifica o risco em `VERDE`, `AMARELO` ou `VERMELHO`. A API continua sendo a única com acesso ao banco: grava em `RECOMENDACOES` e `LEMBRETES` as ações sugeridas, sem alteração de schema.
+A cada pesagem registrada, a API consulta o serviço de IA [Fidelis-IOT-IA](https://github.com/Driven-Soft/Fidelis-IOT-IA) (Python/FastAPI), que estima a faixa de peso esperada para o perfil do pet e classifica o risco em `VERDE`, `AMARELO` ou `VERMELHO`. A API continua sendo a única com acesso ao banco: grava em `RECOMENDACOES` e `LEMBRETES` as ações sugeridas, sem alteração de schema.
 
 ```text
 POST /api/HistoricoPeso → grava HISTORICO_PESOS → POST /analise (FidelisAI)
@@ -538,7 +538,7 @@ Configuração (`appsettings.json`, ou variáveis `FidelisAi__*` no App Service)
 }
 ```
 
-Com `BaseUrl` vazio a análise fica desligada. `ApiKey` vai no header `X-API-Key` e deve ser igual à `FIDELIS_IA_API_KEY` do serviço. Falhas de comunicação com a IA (`HttpRequestException` e timeout) são mapeadas para **503** no `GlobalExceptionHandler`, como as do Oracle e do MongoDB. Para rodar localmente, suba o serviço (`docker run -p 8000:8000 fidelis-ia`, ver README do FidelisAI) antes da API. O código fica em `AnalisePesoService` (Application), `FidelisAiClient` (Infrastructure, via `IHttpClientFactory`) e `FidelisAiExtensions` (Api).
+Com `BaseUrl` vazio a análise fica desligada. `ApiKey` vai no header `X-API-Key` e deve ser igual à `FIDELIS_IA_API_KEY` do serviço. Falhas de comunicação com a IA (`HttpRequestException` e timeout) são mapeadas para **503** no `GlobalExceptionHandler`, como as do Oracle e do MongoDB. Para rodar localmente, suba o serviço (`cd servico_ia && uvicorn main:app --port 8000`, ver README do Fidelis-IOT-IA) antes da API. O código fica em `AnalisePesoService` (Application), `FidelisAiClient` (Infrastructure, via `IHttpClientFactory`) e `FidelisAiExtensions` (Api).
 
 <hr/>
 
