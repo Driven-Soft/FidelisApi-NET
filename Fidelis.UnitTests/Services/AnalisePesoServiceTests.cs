@@ -144,14 +144,25 @@ public class AnalisePesoServiceTests
             x.PetId == 1 && x.Raca == "Yorkshire Terrier" && x.Sexo == "F" && x.IdadeAnos == 4.0 && x.PesoKg == 3.2m)), Times.Once);
     }
 
-    [Theory]
-    [InlineData(typeof(HttpRequestException))]
-    [InlineData(typeof(TaskCanceledException))]
-    public void AnalisarPesagem_IaIndisponivel_RetornaNullSemLancar(Type tipoExcecao)
+    [Fact]
+    public void AnalisarPesagem_IaIndisponivel_RetornaNullSemLancar()
     {
         var pesagem = NovaPesagem();
         ConfigurarPetComPesagem(NovoPet(), pesagem);
-        _clientMock.Setup(c => c.Analisar(It.IsAny<AnalisePesoRequest>())).Throws((Exception)Activator.CreateInstance(tipoExcecao)!);
+        _clientMock.Setup(c => c.Analisar(It.IsAny<AnalisePesoRequest>())).Throws(new HttpRequestException("connection refused"));
+
+        var result = _sut.AnalisarPesagem(pesagem);
+
+        Assert.Null(result);
+        _recomendacaoRepositoryMock.Verify(r => r.SaveChanges(), Times.Never);
+    }
+
+    [Fact]
+    public void AnalisarPesagem_TempoDeRespostaExcedido_RetornaNullSemLancar()
+    {
+        var pesagem = NovaPesagem();
+        ConfigurarPetComPesagem(NovoPet(), pesagem);
+        _clientMock.Setup(c => c.Analisar(It.IsAny<AnalisePesoRequest>())).Throws(new TaskCanceledException("timeout"));
 
         var result = _sut.AnalisarPesagem(pesagem);
 

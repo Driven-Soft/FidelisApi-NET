@@ -55,7 +55,6 @@ Authorization: Bearer {{token}}
 
 ###
 
-# Pesagem avaliada pelo serviço de IA: a resposta traz avaliacaoIa (risco, faixa e justificativa)
 POST {{Fidelis_HostAddress}}/api/HistoricoPeso
 Authorization: Bearer {{token}}
 Content-Type: application/json
