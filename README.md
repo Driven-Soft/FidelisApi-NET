@@ -83,6 +83,7 @@ flowchart TB
         SV[Services]
         DTO[DTOs + QueryParameters<br/>PagedResult • FilterBuilder]
         IR[Interfaces de Repositório]
+        IC[Interface do cliente de IA<br/>IFidelisAiClient]
     end
 
     subgraph DOM["Fidelis.Domain (Núcleo)"]
@@ -92,18 +93,23 @@ flowchart TB
     subgraph INF["Fidelis.Infrastructure (Detalhes técnicos)"]
         EF[EF Core<br/>FidelisContext • Repository&lt;T&gt; • QuerySorter]
         MG[MongoDB<br/>MongoDbContext • Repositórios NoSQL]
+        AC[Cliente HTTP<br/>FidelisAiClient]
     end
 
     ORA[(Oracle)]
     MDB[(MongoDB / Atlas)]
+    IAS[Serviço de IA<br/>Python • FastAPI]
 
     SW -->|HTTP + JWT| MW --> CT --> SV
     SV --> IR
+    SV --> IC
     SV --> EN
     DTO --> EN
     EF -. implementa .-> IR
     MG -. implementa .-> IR
+    AC -. implementa .-> IC
     EF --> ORA
+    AC -->|POST /analise + X-API-Key| IAS
     MG --> MDB
     HC --> ORA
     HC --> MDB
@@ -409,6 +415,12 @@ Cada recurso abaixo expõe o mesmo conjunto de operações:
 
 Recursos: `Clinica`, `Comportamento`, `Consulta`, `Exame`, `HistoricoPeso`, `Lembrete`, `Medicamento`, `Pet`, `Prescricao`, `Recomendacao`, `Tutor` (`POST` público), `Vacinacao`, `Vermifugacao`, `Veterinario`.
 
+Rota adicional:
+
+| Método | Rota | Descrição | Respostas |
+| --- | --- | --- | --- |
+| `GET` | `/api/HistoricoPeso/pet/{petId:int}/avaliacao` | Avaliação de IA da pesagem mais recente do pet (ver [Integração com o serviço de IA](#integração-com-o-serviço-de-ia)) | 200, 400, 401, 404, 503 |
+
 ### Recursos NoSQL (MongoDB)
 
 | Método | Rota | Descrição |
@@ -461,6 +473,7 @@ Documento salvo no MongoDB (coleção `registros_diario`):
 | `GET` | `/health/live` | Liveness (**público**) |
 | `GET` | `/health/ready` | Readiness: Oracle + MongoDB (**público**) |
 | `GET` | `/health` | Relatório completo (**público**) |
+| `GET` | `/wellcome` | Verificação do deploy da pipeline de CI/CD (**público**) |
 
 ### Erros (ProblemDetails)
 
@@ -648,18 +661,21 @@ Fidelis.sln
 │   ├── Auditoria/                     Middleware, fila e BackgroundService de auditoria
 │   ├── Controllers/                   17 controllers REST
 │   ├── Exceptions/                    GlobalExceptionHandler (ProblemDetails)
-│   ├── Extensions/                    DI, JWT, Swagger, Mongo, Health Checks, OpenTelemetry
+│   ├── Extensions/                    DI, JWT, Swagger, Mongo, Health Checks, OpenTelemetry, serviço de IA
 │   ├── Hateoas/                       Link, ResourceResponse, PagedResponse, HateoasController
 │   ├── HealthChecks/                  MongoHealthCheck, criação de índices
 │   └── Program.cs
 ├── Fidelis.Application
 │   ├── Common/                        QueryParameters, PagedResult, FilterBuilder, TextFilter
 │   ├── DTOs/                          Requests, Responses e QueryParameters por recurso
+│   ├── Interfaces/Clients/            Contrato do cliente do serviço de IA
 │   ├── Interfaces/Repositories/       Contratos de persistência (relacional e NoSQL)
-│   └── Services/                      Casos de uso
+│   ├── Services/                      Casos de uso (inclui a análise de peso com IA)
+│   └── Settings/                      Configurações tipadas (JWT, serviço de IA)
 ├── Fidelis.Domain
 │   └── Entities/                      14 entidades relacionais + RegistroDiario + LogAuditoria
 ├── Fidelis.Infrastructure
+│   ├── Clients/                       Cliente HTTP do serviço de IA (IHttpClientFactory)
 │   ├── Migrations/                    Migrations do EF Core (Oracle)
 │   ├── Mongo/                         MongoDbContext, mapeamentos BSON, repositórios NoSQL
 │   ├── Persistence/                   FidelisContext + configurações Fluent API
